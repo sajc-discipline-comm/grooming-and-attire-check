@@ -204,7 +204,39 @@ h2{font-size:28px}
 .assembly{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 72,'SOFT' 25,'WONK' 1;
   font-weight:600;font-size:30px;line-height:1.2;letter-spacing:-.02em;margin-bottom:16px;cursor:pointer}
 .assembly .c{font-family:'Public Sans',sans-serif;font-size:15px;color:var(--muted);font-weight:400;letter-spacing:0}
-video,canvas{width:100%;border-radius:14px;background:#000;display:block;margin-bottom:12px}
+/* ── the card scanner ───────────────────────────────────────────────── */
+.viewfinder{
+  position:relative;width:100%;aspect-ratio:4/3;background:#000;
+  border-radius:16px;overflow:hidden;margin:4px 0 18px;
+}
+.viewfinder video{width:100%;height:100%;object-fit:cover;display:block}
+.vf-overlay{position:absolute;inset:0;pointer-events:none}
+.vf-overlay svg{position:absolute;inset:0;width:100%;height:100%}
+.vf-label,.vf-name{
+  position:absolute;left:7%;width:86%;text-align:center;color:rgba(255,255,255,.92);
+  font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  text-shadow:0 1px 5px rgba(0,0,0,.9);
+}
+.vf-label{top:5.5%}
+.vf-name{top:88.5%;color:rgba(255,255,255,.78)}
+.vf-busy{
+  position:absolute;inset:0;background:rgba(0,0,0,.78);display:none;
+  flex-direction:column;align-items:center;justify-content:center;color:#fff;
+}
+.vf-busy.on{display:flex}
+.vf-busy p{margin:0;font-size:14.5px;color:rgba(255,255,255,.85)}
+.shutter-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.shutter{
+  flex:0 0 auto;width:72px;height:72px;border-radius:50%;border:0;cursor:pointer;
+  background:var(--accent);box-shadow:0 0 0 5px var(--paper),0 0 0 7px var(--accent),
+    0 6px 20px -8px rgba(39,50,106,.6);
+  transition:transform .16s var(--ease),background .2s;
+}
+.shutter:hover{background:var(--accent-deep)}
+.shutter:active{transform:scale(.93)}
+.shutter:disabled{opacity:.5;cursor:default}
+.shutter-row .btn.plain{flex:1;min-width:0}
+canvas{display:none}
 </style>
 </head>
 <body>
@@ -268,18 +300,47 @@ video,canvas{width:100%;border-radius:14px;background:#000;display:block;margin-
   <div id="mFind"></div>
   <div class="field" style="margin-top:12px">
     <label for="q">Type any part of the name, or a class</label>
-    <input id="q" autocomplete="off" autocapitalize="characters" spellcheck="false"
-           oninput="onSearch()" placeholder="ashlyn">
+    <input id="q" autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="onSearch()">
   </div>
   <div id="hits"></div>
-  <button class="btn quiet wide" style="margin-top:6px" onclick="openCamera()">📷 Scan the card instead</button>
-  <div id="camWrap" style="display:none;margin-top:14px">
-    <video id="cam" playsinline muted></video>
-    <canvas id="shot" style="display:none"></canvas>
-    <div class="stack">
-      <button class="btn wide" id="btnShot" onclick="capture()">Take the photo</button>
-      <button class="btn plain" onclick="closeCamera()">Cancel</button>
+  <button class="btn quiet wide" style="margin-top:6px" onclick="goScan()">📷 Scan their card instead</button>
+</section>
+
+<!-- 4b · SCAN -->
+<section class="pane flow" id="pScan">
+  <p class="eyebrow" id="scanWho"></p>
+  <h2>Scan their card</h2>
+  <p class="lede">Fit the whole card inside the box, and make sure the <b>name</b> is sharp and readable.</p>
+  <div id="mScan"></div>
+
+  <div class="viewfinder" id="viewfinder">
+    <video id="cam" playsinline muted autoplay></video>
+    <div class="vf-overlay">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <mask id="cardMask">
+            <rect width="100" height="100" fill="#fff"/>
+            <rect x="7" y="14" width="86" height="72" rx="2" fill="#000"/>
+          </mask>
+        </defs>
+        <rect width="100" height="100" fill="rgba(0,0,0,.62)" mask="url(#cardMask)"/>
+        <rect x="7" y="14" width="86" height="72" rx="2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>
+        <polyline points="7,24 7,14 17,14"  fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <polyline points="83,14 93,14 93,24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <polyline points="7,76 7,86 17,86"  fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <polyline points="83,86 93,86 93,76" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <div class="vf-label">Fit the card to the box</div>
+      <div class="vf-name">Name must be inside</div>
     </div>
+    <div class="vf-busy" id="vfBusy"><div class="spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.25);border-top-color:#fff;margin:0 auto 14px"></div><p>Reading the card…</p></div>
+  </div>
+  <canvas id="shot" style="display:none"></canvas>
+
+  <div class="shutter-row">
+    <button class="btn plain" onclick="leaveScan()">← Back</button>
+    <button class="shutter" id="btnShot" onclick="capture()" aria-label="Take the photo"></button>
+    <button class="btn plain" onclick="leaveScan()">Type it</button>
   </div>
 </section>
 
@@ -367,9 +428,9 @@ var S = {
 };
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
-              confirm:'pConfirm', offences:'pOffences', done:'pDone',
+              scan:'pScan', confirm:'pConfirm', offences:'pOffences', done:'pDone',
               recheck:'pRecheck', rcone:'pRcOne' };
-var PROGRESS = { login:0, loading:.08, home:0, find:.25, confirm:.5,
+var PROGRESS = { login:0, loading:.08, home:0, find:.25, scan:.25, confirm:.5,
                  offences:.75, done:1, recheck:.35, rcone:.7 };
 var HISTORY = [];
 var current = 'login';
@@ -396,9 +457,16 @@ function goBack(){
   go(prev, true);
 }
 function paint(name){
+  if (name !== 'scan') stopCamera();          // never leave the camera running
   if (name === 'home') paintHome();
-  if (name === 'find') { document.getElementById('q').value=''; document.getElementById('hits').innerHTML=''; say('mFind',''); closeCamera();
-    document.getElementById('findCount').textContent = 'Student No. ' + (S.done + 1); }
+  if (name === 'find'){
+    document.getElementById('q').value=''; document.getElementById('hits').innerHTML=''; say('mFind','');
+    document.getElementById('findCount').textContent = 'Student No. ' + (S.done + 1);
+  }
+  if (name === 'scan'){
+    document.getElementById('scanWho').textContent = 'Student No. ' + (S.done + 1);
+    say('mScan','');
+  }
 }
 
 /** "Friday, 31 July 2026" — built by hand so it reads the same on every device. */
@@ -695,32 +763,76 @@ function undoLast(){
   }).catch(function(e){ alert(e.message); });
 }
 
-/* ── camera and OCR ─────────────────────────────────────────────────── */
+/* ── the card scanner ───────────────────────────────────────────────────
+   The guide box is 86% x 72% of a 4:3 viewfinder, which works out at almost
+   exactly the proportions of an ID card. The photo is CROPPED to that box
+   before being sent for reading — this matters more than it looks, because
+   OCR given a whole room performs far worse than OCR given just a card.
+   ───────────────────────────────────────────────────────────────────── */
+var CARD = { x:.07, y:.14, w:.86, h:.72 };
 var stream=null;
-function openCamera(){
-  document.getElementById('camWrap').style.display='block';
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+
+function goScan(){
+  go('scan');
+  startCamera();
+}
+function leaveScan(){
+  stopCamera();
+  go('find');
+  setTimeout(function(){ document.getElementById('q').focus(); },160);
+}
+function startCamera(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    say('mScan','This browser will not give the app a camera. Type the name instead.','warn'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment',
+      width:{ideal:1920}, height:{ideal:1440} } })
     .then(function(st){ stream=st; var v=document.getElementById('cam'); v.srcObject=st; v.play(); })
-    .catch(function(){ document.getElementById('camWrap').style.display='none';
-      say('mFind','No camera access. Type the name instead.','warn'); });
+    .catch(function(){
+      say('mScan','No camera access. Check the browser has permission, or type the name instead.','warn');
+    });
 }
-function closeCamera(){
+function stopCamera(){
   if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; }
-  var w=document.getElementById('camWrap'); if (w) w.style.display='none';
+  var v=document.getElementById('cam'); if (v) v.srcObject=null;
+  var busy=document.getElementById('vfBusy'); if (busy) busy.classList.remove('on');
+  var btn=document.getElementById('btnShot'); if (btn) btn.disabled=false;
 }
-function capture(){
+
+/** Crop the live frame down to just what is inside the guide box. */
+function croppedCard(){
   var v=document.getElementById('cam'), c=document.getElementById('shot');
-  if (!v.videoWidth){ say('mFind','The camera is not ready yet.'); return; }
-  c.width=v.videoWidth; c.height=v.videoHeight;
-  c.getContext('2d').drawImage(v,0,0);
-  var b64=c.toDataURL('image/jpeg',.8).split(',')[1];
-  var btn=document.getElementById('btnShot');
-  btn.disabled=true; btn.textContent='Reading…';
+  var nw=v.videoWidth, nh=v.videoHeight;
+  var bw=v.clientWidth, bh=v.clientHeight;
+  if (!nw || !bw) return null;
+
+  // object-fit:cover means part of the frame is off-screen; work out what is visible
+  var na=nw/nh, ba=bw/bh, visW, visH, visX, visY;
+  if (na > ba){ visH=nh; visW=visH*ba; visY=0; visX=(nw-visW)/2; }
+  else        { visW=nw; visH=visW/ba; visX=0; visY=(nh-visH)/2; }
+
+  var cx=Math.round(visX+visW*CARD.x), cy=Math.round(visY+visH*CARD.y);
+  var cw=Math.round(visW*CARD.w),      ch=Math.round(visH*CARD.h);
+
+  var MAX=1200, scale=Math.min(1, MAX/Math.max(cw,ch));
+  c.width=Math.round(cw*scale); c.height=Math.round(ch*scale);
+  c.getContext('2d').drawImage(v, cx, cy, cw, ch, 0, 0, c.width, c.height);
+  return c;
+}
+
+function capture(){
+  var c=croppedCard();
+  if (!c){ say('mScan','The camera is not ready yet — give it a second.','warn'); return; }
+  var b64=c.toDataURL('image/jpeg',.85).split(',')[1];
+  var btn=document.getElementById('btnShot'), busy=document.getElementById('vfBusy');
+  btn.disabled=true; busy.classList.add('on'); say('mScan','');
   post('ocr',{base64:b64}).then(function(j){
-    btn.disabled=false; btn.textContent='Take the photo'; closeCamera();
-    if (!j.ok){ say('mFind', j.error, 'warn'); return; }
+    btn.disabled=false; busy.classList.remove('on');
+    if (!j.ok){ say('mScan', j.error, 'warn'); return; }
+    stopCamera();
+    go('find');
     handleOcr(j.text||'');
-  }).catch(function(e){ btn.disabled=false; btn.textContent='Take the photo'; say('mFind', e.message); });
+  }).catch(function(e){ btn.disabled=false; busy.classList.remove('on'); say('mScan', e.message); });
 }
 /**
  * Auto-advance only when the best match is BOTH good enough and clearly
