@@ -201,9 +201,6 @@ h2{font-size:28px}
 .grouphead{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.14em;
   text-transform:uppercase;margin:18px 0 9px}
 .grouphead:first-child{margin-top:0}
-.assembly{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 72,'SOFT' 25,'WONK' 1;
-  font-weight:600;font-size:30px;line-height:1.2;letter-spacing:-.02em;margin-bottom:16px;cursor:pointer}
-.assembly .c{font-family:'Public Sans',sans-serif;font-size:15px;color:var(--muted);font-weight:400;letter-spacing:0}
 /* ── the card scanner ───────────────────────────────────────────────── */
 .viewfinder{
   position:relative;width:100%;aspect-ratio:4/3;background:#000;
@@ -391,7 +388,6 @@ canvas{display:none}
   <div class="seg">
     <button id="segClass" class="on" onclick="setRcMode('class')">By class</button>
     <button id="segPri" onclick="setRcMode('pri')">By priority</button>
-    <button id="segAsm" onclick="setRcMode('asm')">Assembly</button>
   </div>
   <div id="rcList"></div>
   <button class="btn quiet wide" style="margin-top:10px" onclick="copyList()">📋 Copy the list</button>
@@ -874,8 +870,8 @@ function openRecheck(){
 }
 function setRcMode(m){
   S.rcMode=m;
-  ['segClass','segPri','segAsm'].forEach(function(id){ document.getElementById(id).classList.remove('on'); });
-  document.getElementById(m==='class'?'segClass':m==='pri'?'segPri':'segAsm').classList.add('on');
+  ['segClass','segPri'].forEach(function(id){ document.getElementById(id).classList.remove('on'); });
+  document.getElementById(m==='pri'?'segPri':'segClass').classList.add('on');
   paintRecheck();
 }
 function paintRecheck(){
@@ -888,15 +884,6 @@ function paintRecheck(){
     return;
   }
   list.sort(function(a,b){ return String(a.cls).localeCompare(String(b.cls)) || String(a.name).localeCompare(String(b.name)); });
-  if (S.rcMode==='asm'){
-    list.forEach(function(r){
-      var d=document.createElement('div'); d.className='assembly'; d.textContent=r.name;
-      var c=document.createElement('div'); c.className='c'; c.textContent=r.cls;
-      d.appendChild(c); d.onclick=function(){ openRecheckOne(r,r.codes); };
-      box.appendChild(d);
-    });
-    return;
-  }
   var currentCls=null;
   list.forEach(function(r){
     if (r.cls!==currentCls){
