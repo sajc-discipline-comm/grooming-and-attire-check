@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Grooming &amp; Attire Check — how to use it</title>
+<title>Grooming &amp; Attire Check — instructions and tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0..100,0..1&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -23,41 +23,45 @@ body{
   margin:0;background:var(--paper);color:var(--ink);
   font-family:'Public Sans',system-ui,-apple-system,"Segoe UI",sans-serif;
   font-size:17px;line-height:1.55;letter-spacing:-.005em;
-  padding:0 0 60px;
+  padding:0 0 50px;
 }
 .page{max-width:600px;margin:0 auto;padding:0 24px}
 h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 60,'SOFT' 30,'WONK' 1;
   font-weight:600;letter-spacing:-.018em;line-height:1.12;margin:0 0 10px}
 h1{font-size:38px}
 h2{font-size:27px}
-h3{font-size:19px;font-variation-settings:'opsz' 30,'SOFT' 30,'WONK' 1;margin:0 0 6px}
-p{margin:0 0 15px}
+p{margin:0 0 14px}
 .eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
   color:var(--muted);margin:0 0 12px}
-.lede{color:var(--muted);font-size:15.5px;margin:0 0 24px;max-width:34ch}
+.lede{color:var(--muted);font-size:15.5px;margin:0 0 22px;max-width:34ch}
 .muted{color:var(--muted)}
 a{color:var(--accent);text-underline-offset:3px}
 
-/* ── masthead ─────────────────────────────────────────── */
-.mast{padding:34px 0 4px;border-bottom:1px solid var(--line);margin-bottom:34px}
+.mast{padding:34px 0 4px;border-bottom:1px solid var(--line);margin-bottom:30px}
 .brand{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 14,'SOFT' 40,'WONK' 1;
   font-weight:600;font-size:14.5px;color:var(--accent);margin:0 0 22px}
-.mast .lede{margin-bottom:28px}
+.mast .lede{margin-bottom:24px}
 
-/* ── numbered sections ────────────────────────────────── */
-section.step{padding:30px 0;border-top:1px solid var(--line)}
+section.step{padding:28px 0;border-top:1px solid var(--line)}
 section.step:first-of-type{border-top:0;padding-top:0}
 .num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;
   background:var(--accent);color:#fff;font-size:13.5px;font-weight:600;margin-bottom:14px}
-ol.plain,ul.plain{margin:0 0 16px;padding-left:22px}
-ol.plain li,ul.plain li{margin-bottom:9px}
+
+ol.taps{margin:0 0 14px;padding:0;list-style:none;counter-reset:t}
+ol.taps li{counter-increment:t;position:relative;padding-left:34px;margin-bottom:11px}
+ol.taps li::before{
+  content:'(' counter(t) ')';position:absolute;left:0;top:0;
+  font-size:14px;font-weight:600;color:var(--accent)}
+ul.plain{margin:0 0 14px;padding-left:20px}
+ul.plain li{margin-bottom:8px}
+
 .big-link{display:block;background:var(--raised);border:1.5px solid var(--line);border-radius:13px;
-  padding:16px 18px;margin:0 0 16px;font-weight:600;font-size:16px;color:var(--accent);
+  padding:15px 18px;margin:0 0 14px;font-weight:600;font-size:15.5px;color:var(--accent);
   word-break:break-all;text-decoration:none;line-height:1.4;transition:border-color .2s,transform .16s var(--ease)}
 .big-link:hover{border-color:var(--accent);transform:translateY(-1.5px)}
 .big-link em{display:block;font-style:normal;font-weight:400;font-size:13px;color:var(--muted);
   margin-top:4px;word-break:normal}
-.note{padding:13px 16px;border-radius:11px;font-size:14.5px;margin:0 0 18px;border-left:3px solid;line-height:1.5}
+.note{padding:13px 16px;border-radius:11px;font-size:14.5px;margin:0 0 16px;border-left:3px solid;line-height:1.5}
 .note.err{background:var(--bad-tint);color:var(--bad);border-color:var(--bad)}
 .note.warn{background:var(--warn-tint);color:var(--warn);border-color:var(--warn)}
 .note.ok{background:var(--good-tint);color:var(--good);border-color:var(--good)}
@@ -65,29 +69,26 @@ kbd{font:inherit;font-weight:600;background:var(--accent-tint);color:var(--accen
   padding:1px 7px;border-radius:6px;white-space:nowrap}
 
 details.fold{border:1.5px solid var(--line);border-radius:13px;background:var(--raised);
-  margin:0 0 11px;overflow:hidden}
-details.fold summary{padding:15px 18px;cursor:pointer;font-weight:600;font-size:16px;
+  margin:0 0 10px;overflow:hidden}
+details.fold summary{padding:14px 18px;cursor:pointer;font-weight:600;font-size:15.5px;
   list-style:none;display:flex;align-items:center;gap:11px;transition:background .2s}
 details.fold summary::-webkit-details-marker{display:none}
 details.fold summary::before{content:'+';color:var(--accent);font-weight:600;font-size:19px;
   width:16px;flex:0 0 auto;line-height:1}
 details.fold[open] summary::before{content:'–'}
 details.fold summary:hover{background:var(--accent-tint)}
-details.fold .body{padding:2px 18px 18px;font-size:15.5px}
+details.fold .body{padding:2px 18px 17px;font-size:15.5px}
 details.fold .body p:last-child{margin-bottom:0}
 
-.divider{margin:46px 0 30px;text-align:center}
-.divider span{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--muted);background:var(--paper);padding:0 14px}
-.divider{border-top:1px solid var(--line);line-height:0}
-.divider span{position:relative;top:-9px}
+.divider{margin:42px 0 26px;border-top:1px solid var(--line);line-height:0;text-align:center}
+.divider span{display:inline-block;position:relative;top:-9px;font-size:11.5px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted);background:var(--paper);padding:0 14px}
 
 /* ── the practice frame ───────────────────────────────── */
-.practice{margin:22px 0 10px}
+.practice{margin:20px 0 8px}
 .pband{display:flex;align-items:center;gap:9px;background:var(--warn-tint);color:var(--warn);
   border:1.5px solid #e9d9b8;border-bottom:0;border-radius:15px 15px 0 0;
   padding:10px 16px;font-size:11.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase}
-.pband b{font-weight:600}
 .pdot{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:0 0 auto;
   animation:pulse 2.4s var(--ease) infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -97,7 +98,7 @@ details.fold .body p:last-child{margin-bottom:0}
   box-shadow:0 2px 4px rgba(27,30,43,.05),0 22px 44px -30px rgba(39,50,106,.5);
   display:flex;flex-direction:column}
 .simfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;
-  margin-top:11px;font-size:13.5px;color:var(--muted)}
+  margin-top:10px;font-size:13.5px;color:var(--muted)}
 .restart{border:0;background:none;font:inherit;font-size:13.5px;color:var(--muted);
   cursor:pointer;padding:6px 2px;text-decoration:underline;text-underline-offset:3px}
 .restart:hover{color:var(--accent)}
@@ -121,6 +122,8 @@ details.fold .body p:last-child{margin-bottom:0}
 .sim .pane.on{opacity:1;transform:none;pointer-events:auto}
 .sim .pane.out{opacity:0;transform:translateY(-16px)}
 .sim .pane.flow{justify-content:flex-start;padding-top:8px}
+/* the frame is shorter than a real phone, so nothing may be squeezed flat */
+.sim .pane>*{flex:0 0 auto}
 .sim .pane.on>*{animation:rise .5s var(--ease) backwards}
 .sim .pane.on>*:nth-child(1){animation-delay:.03s}
 .sim .pane.on>*:nth-child(2){animation-delay:.08s}
@@ -191,11 +194,14 @@ details.fold .body p:last-child{margin-bottom:0}
 @keyframes draw{to{stroke-dashoffset:0}}
 .sim .centered{text-align:center}
 .sim .centered .lede{margin-left:auto;margin-right:auto}
-.sim .hint{font-size:12.5px;color:var(--muted);margin-top:16px;text-align:center}
+.sim .seg{display:flex;border:1.5px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:14px}
+.sim .seg button{flex:1;padding:11px 6px;font:inherit;font-size:14px;font-weight:600;border:0;
+  background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
+.sim .seg button.on{background:var(--accent);color:#fff}
 .sim .grouphead{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.14em;
   text-transform:uppercase;margin:16px 0 9px}
+.sim .grouphead:first-child{margin-top:0}
 
-/* ── the nudge ────────────────────────────────────────── */
 .nudge{position:absolute;left:14px;right:14px;bottom:14px;z-index:5;
   background:var(--accent);color:#fff;border-radius:13px;padding:13px 16px;
   font-size:14.5px;line-height:1.45;
@@ -233,53 +239,32 @@ details.fold .body p:last-child{margin-bottom:0}
   <header class="mast">
     <p class="brand">SAJC Discipline Committee</p>
     <h1>Grooming &amp; Attire Check</h1>
-    <p class="lede">How to use it. You have not missed anything — this is written for someone who has never opened it.</p>
-    <p class="note ok">You can practise on this page. There is a working copy of the app below with made-up students in it. Tapping anything in it is safe: nothing you do there is saved, and nobody sees it.</p>
+    <p class="lede">Instructions and tutorial.</p>
+    <p class="note ok">There is a practice copy of the app below with made-up students in it. Tapping anything in it is safe and is meant for your own exploration.</p>
   </header>
 
   <!-- 1 ─────────────────────────────────────────────── -->
   <section class="step">
     <span class="num">1</span>
     <h2>What this is</h2>
-    <p>It is where you record what was called out at a grooming check, while the student is still standing in front of you.</p>
-    <p>It replaces the stack of paper that used to be typed up afterwards. Class tutors still tick their own namelists as they always have — this is only for the students sent to the front.</p>
-    <p>About five seconds a student, most of it deciding rather than waiting.</p>
+    <p>This app is used to record students live when you are checking their grooming and attire at the front. It is intended to log students quickly and easily refer to them in the future when they need to be called for rechecks.</p>
+    <p>If you are asking: <i>"Where's the excel sheet?"</i> It's with Kim. But the goal is that with this app, you would have very little need to open it.</p>
   </section>
 
   <!-- 2 ─────────────────────────────────────────────── -->
   <section class="step">
     <span class="num">2</span>
     <h2>How to open it</h2>
-    <p>There is nothing to install. It is a web page — you open it the same way you would open any website, in the browser you already have on your phone.</p>
+    <p>Kim will give you the link.</p>
     <a class="big-link" href="https://sajc-discipline-comm.github.io/grooming-and-attire-check/" target="_blank" rel="noopener">
       sajc-discipline-comm.github.io/grooming-and-attire-check
-      <em>Tap this to open it. There is no App Store, nothing to download, nothing to update.</em>
+      <em>It is a web page. Nothing to install.</em>
     </a>
-    <p>It is worth putting it on your home screen so it sits with your other apps and you never have to find the link again.</p>
-
     <details class="fold">
-      <summary>Put it on my home screen — iPhone</summary>
+      <summary>Keep it on your home screen</summary>
       <div class="body">
-        <ol class="plain">
-          <li>Open the link above in <b>Safari</b>. It has to be Safari for this to work.</li>
-          <li>Tap the <b>share button</b> at the bottom of the screen — the square with an arrow pointing up out of it.</li>
-          <li>Scroll down the list and tap <b>Add to Home Screen</b>.</li>
-          <li>Tap <b>Add</b>, top right.</li>
-        </ol>
-        <p class="muted">It now sits on your home screen like any other app.</p>
-      </div>
-    </details>
-
-    <details class="fold">
-      <summary>Put it on my home screen — Android</summary>
-      <div class="body">
-        <ol class="plain">
-          <li>Open the link above in <b>Chrome</b>.</li>
-          <li>Tap the <b>three dots</b> at the top right.</li>
-          <li>Tap <b>Add to Home screen</b>. Some phones say <b>Install app</b> — either is the right one.</li>
-          <li>Tap <b>Add</b>, or <b>Install</b>.</li>
-        </ol>
-        <p class="muted">It now sits on your home screen like any other app.</p>
+        <p><b>iPhone.</b> Open the link in Safari → tap the share button at the bottom (square with an arrow out of it) → scroll down → <b>Add to Home Screen</b> → <b>Add</b>.</p>
+        <p><b>Android.</b> Open the link in Chrome → tap the three dots, top right → <b>Add to Home screen</b> (some phones say <b>Install app</b>) → <b>Add</b>.</p>
       </div>
     </details>
   </section>
@@ -288,131 +273,110 @@ details.fold .body p:last-child{margin-bottom:0}
   <section class="step">
     <span class="num">3</span>
     <h2>How to sign in</h2>
-    <p>Two things: <b>your name</b>, and <b>the password Kim gave you</b>. Then tap <kbd>Sign in</kbd>.</p>
-    <p>Put your own real name in. It is saved next to whatever you record, so the committee knows who did the checking — that is all it is for.</p>
-    <p>After you sign in it spends two or three seconds fetching the list of students. <b>That wait happens once.</b> Everything after it is instant, so sign in before you are standing in front of anybody, not while.</p>
-    <p class="muted">If you close the tab, you sign in again next time. Leaving it open in the background is fine.</p>
+    <p>Type in your name or initials, and the password given by Kim.</p>
+    <p>It will take approx. 5 seconds to load the roster — the list of student names — and after that you are ready to go.</p>
   </section>
 
   <!-- 4 ─────────────────────────────────────────────── -->
   <section class="step">
     <span class="num">4</span>
     <h2>How to log a student</h2>
-    <p>Four taps, and then it repeats. Find them → check it is the right person → tap what was called out → save.</p>
-    <p><b>Try it now.</b> The frame below is a working copy with invented students in it. Type <kbd>art</kbd> in the box, or just a couple of letters, and follow it through. You cannot do any harm.</p>
+    <ol class="taps">
+      <li>Type any part of the student's name, or their class.</li>
+      <li>Tap on the student. Check if it is the right student. If wrong, press <kbd>No — go back</kbd>.</li>
+      <li>Tap on the offences they need to be registered for.</li>
+      <li>Tap <kbd>Save</kbd>. Then <kbd>Next student</kbd>, if you still have students after this current one.</li>
+    </ol>
+    <p class="muted">Try it below. Type <kbd>tan</kbd> to start.</p>
 
     <div class="practice">
-      <div class="pband"><span class="pdot"></span><span>Practice — <b>nothing here is real</b></span></div>
+      <div class="pband"><span class="pdot"></span><span>Practice — made-up students</span></div>
       <div class="sim" id="sim1"></div>
       <div class="simfoot">
-        <span>Made-up students. Nothing is saved.</span>
+        <span>Nothing here is saved.</span>
         <button class="restart" data-restart="sim1">Start over</button>
       </div>
     </div>
-
-    <h3>The same thing in words</h3>
-    <ol class="plain">
-      <li><b>Find them.</b> Type any part of the name — two or three letters is usually enough — and tap them in the list. Typing a class code brings up that whole class.</li>
-      <li><b>Check it is the right student.</b> Their name and class are shown large. If it is not them, tap <kbd>No — go back</kbd>. Never wave one through.</li>
-      <li><b>Tap what was called out.</b> As many as apply. Nothing is recorded yet.</li>
-      <li><b>Tap <kbd>Save</kbd>.</b> Then <kbd>Next student</kbd>, and you are back at the search box.</li>
-    </ol>
-    <p class="muted">Thirty students in a row without ever leaving that loop.</p>
   </section>
 
   <!-- 5 ─────────────────────────────────────────────── -->
   <section class="step">
     <span class="num">5</span>
-    <h2>How to undo a mistake</h2>
-    <p>Everybody saves the wrong thing eventually. It takes one tap to take it back, and it only ever removes that one student — never anybody you did before them.</p>
-    <p><b>Straight away:</b> on the screen that says <b>Saved</b>, tap <kbd>That was wrong — undo</kbd>.</p>
-    <p><b>A few students later:</b> tap <kbd>Finish for now</kbd> to get back to the front screen. Under <b>Entered this session</b> are the last ten students you recorded. Tap one to take it back.</p>
-    <p>Practise both here — the frame starts on the Saved screen.</p>
+    <h2>How to undo</h2>
+    <ol class="taps">
+      <li>Just saved it? Tap <kbd>That was wrong — undo</kbd>.</li>
+      <li>A few students later? Tap <kbd>Finish for now</kbd>, then under <b>Entered this session</b> tap the student to take it back.</li>
+    </ol>
+    <p class="muted">It only ever removes that one student. Try both below.</p>
 
     <div class="practice">
-      <div class="pband"><span class="pdot"></span><span>Practice — <b>nothing here is real</b></span></div>
+      <div class="pband"><span class="pdot"></span><span>Practice — made-up students</span></div>
       <div class="sim" id="sim2"></div>
       <div class="simfoot">
-        <span>Made-up students. Nothing is saved.</span>
+        <span>Nothing here is saved.</span>
         <button class="restart" data-restart="sim2">Start over</button>
       </div>
     </div>
-
-    <p class="note ok">Older than the last ten, or a mistake found the next day? Tell Kim. It is a small fix in the spreadsheet and it is not a problem.</p>
   </section>
 
-  <div class="divider"><span>More, when you need it</span></div>
-  <p class="lede">You do not need any of this to do the job. It is here for the day something is not obvious.</p>
+  <!-- 6 ─────────────────────────────────────────────── -->
+  <section class="step">
+    <span class="num">6</span>
+    <h2>How to recheck</h2>
+    <p>When students come back to show they have fixed something.</p>
+    <ol class="taps">
+      <li>Tap <kbd>Recheck list</kbd> on the front screen.</li>
+      <li><kbd>By class</kbd> for calling names out. <kbd>By priority</kbd> to chase the worst first.</li>
+      <li>Tap the student when they come forward.</li>
+      <li>Tap each item they have fixed. Anything you don't tap stays open.</li>
+      <li>Tap <kbd>Save</kbd>. If they never turned up, tap <kbd>Didn't show up</kbd> instead.</li>
+    </ol>
+
+    <div class="practice">
+      <div class="pband"><span class="pdot"></span><span>Practice — made-up students</span></div>
+      <div class="sim" id="sim3"></div>
+      <div class="simfoot">
+        <span>Nothing here is saved.</span>
+        <button class="restart" data-restart="sim3">Start over</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"><span>FAQ</span></div>
 
   <details class="fold">
-    <summary>Scanning a student card instead of typing</summary>
+    <summary>Why is there no excel sheet?</summary>
     <div class="body">
-      <p>On the search screen, tap <kbd>📷 Scan their card instead</kbd>. Fit the whole card inside the box on screen, make sure the name is sharp, and press the round button.</p>
-      <p>It reads the name off the photo, so the reading is only ever as good as the picture. If it comes back with several possible students, it is telling you it is not certain which one — read them properly and pick the right one. It is built to ask rather than guess, because a grooming record filed against the wrong student is not caught by anything later.</p>
-      <p>If it cannot read the card at all, tap <kbd>Type it</kbd> and search for the name. That is not a workaround; it is there for exactly this.</p>
+      <p>There is one, and it is with Kim. Everything you tap goes straight into it.</p>
+      <p>The point of the app is that you should not need to open it.</p>
     </div>
   </details>
 
   <details class="fold">
-    <summary>The recheck list — when students come back</summary>
+    <summary>How did you make this?</summary>
     <div class="body">
-      <p>Days later, students come back to show they have fixed something. Tap <kbd>Recheck list</kbd> on the front screen.</p>
-      <p>Two ways to sort it, one tap apart. <b>By class</b> when you are calling names out. <b>By priority</b> when you are chasing — the ones who did not turn up last time come to the top.</p>
-      <p>Tap a student, then tap each item they have <b>fixed</b>. Anything you do not tap stays open, so you can clear one thing and leave another. If they were called and did not appear, tap <kbd>Didn't show up</kbd> — that marks them and pushes them up the list.</p>
-      <p><kbd>📋 Copy the list</kbd> puts the whole list on your clipboard as plain text, ready to paste into a message.</p>
+      <p>Kim built it. It is a web page that writes straight into a Google spreadsheet owned by the committee's own account.</p>
+      <p>Nothing is kept on your phone — close the tab and it is gone from there. Two people can use it at the same time without overwriting each other.</p>
     </div>
   </details>
 
   <details class="fold">
-    <summary>Remarks — the box under the offences</summary>
+    <summary>What's "scan a student card" for?</summary>
     <div class="body">
-      <p>Optional. It is for when the category does not quite cover what you saw — <i>thickness rather than length</i>, that sort of thing. Leave it empty the rest of the time.</p>
+      <p>For when you don't know the name. Instead of typing, photograph their card and it reads the name off it, then you pick them from what it found.</p>
+      <p>Fit the whole card in the box and make sure the name is sharp. If it can't read it, tap <kbd>Type it</kbd> and search instead — that is what it is there for.</p>
     </div>
   </details>
 
   <details class="fold">
-    <summary>The name will not come up</summary>
+    <summary>Anything else</summary>
     <div class="body">
-      <p>Almost always a spelling difference. Try a different part of the name — a middle name, or the last word of it — or type their class code to bring up the whole class and find them by eye.</p>
-      <p>Only if they are genuinely not there, tap <kbd>Record anyway — not in the roster yet</kbd>. "Roster" is just the list of students' names. That button is for a student who has transferred in and has not been added to the list yet. It records them under the name you typed, marks it so somebody can tidy it up afterwards, and nothing is lost.</p>
+      <p>Ask Kim.</p>
     </div>
   </details>
 
-  <details class="fold">
-    <summary>The amber messages, and what they mean</summary>
-    <div class="body">
-      <p><b>"Already open: Hair Colour"</b> — on the confirm screen. This student already has that offence outstanding from a previous check. The button underneath changes to <kbd>Yes — recheck them</kbd>, and tapping it takes you to their recheck rather than a fresh check. Nothing is wrong.</p>
-      <p><b>"No Student ID — recorded for linking up later"</b> — you used <i>Record anyway</i> for someone not on the list. It is a note to whoever tidies up, not a problem for you.</p>
-      <p class="muted">Amber in this app never means you have broken something. It means: notice this.</p>
-    </div>
-  </details>
-
-  <details class="fold">
-    <summary>Worth knowing</summary>
-    <div class="body">
-      <ul class="plain">
-        <li><b>It needs internet.</b> With no signal it says so plainly rather than pretending to save.</li>
-        <li><b>Nothing is stored on your phone.</b> Close the tab and it is gone from the phone. The record itself lives in the committee's spreadsheet.</li>
-        <li><b>Two of you can use it at the same time.</b> You will not overwrite each other, and your undo can never remove somebody else's student.</li>
-        <li><b>You cannot break it by tapping around.</b> Nothing is recorded until you press <kbd>Save</kbd>.</li>
-        <li><b>Checked the same student for the same thing twice?</b> It refuses, and says so. There is simply nothing to add.</li>
-        <li><b>Somebody edited the student list while you were working?</b> <kbd>↻ Refresh the roster</kbd> on the front screen pulls the list of names again.</li>
-      </ul>
-    </div>
-  </details>
-
-  <details class="fold">
-    <summary>It will not work at all</summary>
-    <div class="body">
-      <p>If the page opens but nothing you do goes through — it will not sign you in, or it says it cannot reach the records — that is on the spreadsheet side, not yours. Nothing you did caused it and nothing you can tap will fix it.</p>
-      <p><b>Tell Kim, and say what you were doing when it stopped.</b> There is a check she can run that says which of three things it is, and it is usually a two-minute fix.</p>
-    </div>
-  </details>
-
-  <div class="bottom" style="margin-top:44px;padding-top:26px;border-top:1px solid var(--line)">
-    <p class="eyebrow">One more thing</p>
-    <p>If you print this page, you get a single sheet with just the loop, the undo, and the what-if-it-goes-wrong list. Good for the staffroom drawer.</p>
-    <p class="muted" style="font-size:14px">Written for the Discipline Committee · August 2026 · Every student in the practice app is invented.</p>
+  <div class="bottom" style="margin-top:36px;padding-top:22px;border-top:1px solid var(--line)">
+    <p class="muted" style="font-size:14px;margin:0">Print this page and you get one sheet for the staffroom drawer. Every student in the practice app is invented.</p>
   </div>
 
 </div>
@@ -420,46 +384,42 @@ details.fold .body p:last-child{margin-bottom:0}
 <!-- ── the drawer copy: printing gives you exactly this ───────────── -->
 <div class="printonly">
   <h1>Grooming &amp; Attire Check</h1>
-  <p class="sub">sajc-discipline-comm.github.io/grooming-and-attire-check · a web page, nothing to install · sign in with your name and the password Kim gave you</p>
+  <p class="sub">A web page — nothing to install. Kim has the link. Sign in with your name or initials and the password Kim gave you. About 5 seconds to load, then you're ready.</p>
 
-  <h2>The loop — four taps, then it repeats</h2>
+  <h2>Logging a student</h2>
   <div class="cols">
     <div class="col">
       <ol>
-        <li><b>Find them.</b> Type two or three letters of the name, or a class code, and tap them in the list. Or tap <b>Scan their card instead</b>.</li>
-        <li><b>Check it is them.</b> Name and class are shown large. Not them? <b>No — go back</b>.</li>
+        <li>Type any part of the name, or their class.</li>
+        <li>Tap the student. Check it is the right one — if not, <b>No — go back</b>.</li>
       </ol>
     </div>
     <div class="col">
       <ol start="3">
-        <li><b>Tap what was called out.</b> As many as apply. Remarks box only if the category does not cover it.</li>
+        <li>Tap the offences they need registered.</li>
         <li><b>Save</b>, then <b>Next student</b>.</li>
       </ol>
     </div>
   </div>
-  <p>Sign in <b>before</b> assembly — it takes two or three seconds to fetch the names, and that wait only happens once.</p>
 
-  <h2>Undoing a mistake</h2>
+  <h2>Undoing</h2>
   <ul>
-    <li><b>Straight away</b> — on the <b>Saved</b> screen, tap <b>That was wrong — undo</b>.</li>
-    <li><b>A few students later</b> — <b>Finish for now</b>, then under <b>Entered this session</b> tap the student to take it back. Last ten.</li>
-    <li><b>Longer ago</b> — tell Kim. It is a small fix and it is not a problem.</li>
-  </ul>
-  <p>Undo only ever removes that one student. It never touches anybody you did before them, or anybody another person recorded.</p>
-
-  <h2>When something is not obvious</h2>
-  <ul>
-    <li><b>Card will not scan</b> — tap <b>Type it</b> and search the name. That is what it is there for.</li>
-    <li><b>It offers several students</b> — it is not certain which one. Read them and pick.</li>
-    <li><b>Name will not come up</b> — nearly always a spelling difference. Try a different part of the name, or the class code. Genuinely not there: <b>Record anyway</b> (for a transfer not yet added to the list).</li>
-    <li><b>Amber "Already open: …"</b> — they still have that offence outstanding. The button becomes <b>Yes — recheck them</b>. Nothing is wrong.</li>
-    <li><b>"Already recorded"</b> — same offence, same student, still open. Nothing to add.</li>
-    <li><b>No signal</b> — it says so rather than pretending to save.</li>
-    <li><b>Nothing works at all</b> — spreadsheet side, not yours. Tell Kim what you were doing when it stopped.</li>
+    <li><b>Just saved it</b> — tap <b>That was wrong — undo</b>.</li>
+    <li><b>A few students later</b> — <b>Finish for now</b>, then tap the student under <b>Entered this session</b>. Last ten.</li>
+    <li><b>Longer ago</b> — tell Kim.</li>
   </ul>
 
-  <h2>Students coming back to be rechecked</h2>
-  <p><b>Recheck list</b> on the front screen. <b>By class</b> for calling out, <b>by priority</b> for chasing. Tap the student, tap each item they have <b>fixed</b> — anything untapped stays open. Called and did not appear: <b>Didn't show up</b>.</p>
+  <h2>Rechecking</h2>
+  <p><b>Recheck list</b> on the front screen. <b>By class</b> for calling out, <b>by priority</b> to chase. Tap the student, tap each item they have <b>fixed</b> — anything untapped stays open — then <b>Save</b>. Never turned up: <b>Didn't show up</b>.</p>
+
+  <h2>If something is odd</h2>
+  <ul>
+    <li><b>Card won't scan</b> — tap <b>Type it</b> and search the name.</li>
+    <li><b>Several students offered</b> — it isn't certain which. Read them and pick.</li>
+    <li><b>Name won't come up</b> — usually a spelling difference. Try another part of the name, or the class.</li>
+    <li><b>Amber "Already open: …"</b> — they still have that offence outstanding. Nothing is wrong.</li>
+    <li><b>Nothing works at all</b> — tell Kim what you were doing when it stopped.</li>
+  </ul>
 
   <p class="foot">Nothing is recorded until you press Save · nothing is stored on your phone · two people can use it at once · you cannot break it by tapping around.</p>
 </div>
@@ -468,15 +428,16 @@ details.fold .body p:last-child{margin-bottom:0}
 (function(){
 'use strict';
 
-/* Invented students. No real name appears anywhere in this file. */
+/* Specimen names — the ones used on sample forms, not anybody's.
+   Classes 26X98 and 26X99 do not exist. No real student appears in this file. */
 var ROSTER = [
-  {id:'X1', name:'ARTEMIS QUAYLE-BRIGHT',       cls:'26X99', g:'Male'},
-  {id:'X2', name:'BUNTY FEATHERSTONE-HAUGH',    cls:'26X99', g:'Female'},
-  {id:'X3', name:'CORVUS PENNYWHISTLE',         cls:'26X99', g:'Male'},
-  {id:'X4', name:'DAHLIA MOONWRIGHT-OBI',       cls:'26X98', g:'Female', open:['C2']},
-  {id:'X5', name:'ELDRIC SNODGRASS',            cls:'26X98', g:'Male'},
-  {id:'X6', name:'FENELLA THISTLEWAITE',        cls:'26X98', g:'Female'},
-  {id:'X7', name:'ARTHUR BOGGLEWORTH',          cls:'26X98', g:'Male'}
+  {id:'X1', name:'TAN AH KOW',         cls:'26X99', g:'Male'},
+  {id:'X2', name:'TAN MEI MEI',        cls:'26X99', g:'Female'},
+  {id:'X3', name:'LIM AH SENG',        cls:'26X99', g:'Male'},
+  {id:'X4', name:'SITI BINTE AHMAD',   cls:'26X98', g:'Female', open:['C2']},
+  {id:'X5', name:'AHMAD BIN ALI',      cls:'26X98', g:'Male'},
+  {id:'X6', name:'MUTHU S/O RAMASAMY', cls:'26X98', g:'Male'},
+  {id:'X7', name:'PRIYA D/O SAMY',     cls:'26X99', g:'Female'}
 ];
 
 /* The category list, as the app draws it from the spreadsheet.
@@ -492,14 +453,26 @@ var CATS = [
   {code:'C8', name:'Others',                             boys:'Others',                             girls:'Others'}
 ];
 
-var PROGRESS = {find:0.15, confirm:0.45, offences:0.75, done:1, home:0.02};
+/* Who is outstanding, for the recheck practice. */
+function freshRecheck(){
+  return [
+    {id:'X5', name:'AHMAD BIN ALI',     cls:'26X98', codes:['C6'],      days:9, last:'Did Not Report'},
+    {id:'X1', name:'TAN AH KOW',        cls:'26X99', codes:['C1','C7'], days:4, last:'Fail'},
+    {id:'X4', name:'SITI BINTE AHMAD',  cls:'26X98', codes:['C2'],      days:4, last:''},
+    {id:'X2', name:'TAN MEI MEI',       cls:'26X99', codes:['C6'],      days:2, last:''}
+  ];
+}
+
+var PROGRESS = {find:0.15, confirm:0.45, offences:0.75, done:1, home:0.02, recheck:0.3, rcOne:0.7};
 
 var NUDGE = {
-  find:     'Type <b>art</b> in the box — just three letters — then tap the name that appears.',
+  find:     'Type <b>tan</b> in the box — just three letters — then tap a name that appears.',
   confirm:  'Check the name and class. If it is the right student, tap <b>Yes, continue</b>.',
   offences: 'Tap whatever was called out — one, or several. Then tap <b>Save</b>.',
   done:     'Try <b>That was wrong — undo</b>. Nothing here is real, so nothing is lost.',
-  home:     'Under <b>Entered this session</b>, tap a student to take that entry back.'
+  home:     'Under <b>Entered this session</b>, tap a student to take that entry back.',
+  recheck:  'Tap a student, as though they had just come forward.',
+  rcOne:    'Tap each item they have fixed, then <b>Save</b>.'
 };
 
 function el(tag, cls, html){
@@ -589,6 +562,32 @@ var MARKUP =
     '</div>' +
   '</section>' +
 
+  '<section class="pane flow" data-p="recheck">' +
+    '<p class="eyebrow rcCount"></p>' +
+    '<h2>Recheck list</h2>' +
+    '<p class="lede">Tap a student when they come forward.</p>' +
+    '<div class="mRc"></div>' +
+    '<div class="seg">' +
+      '<button class="segClass on" type="button">By class</button>' +
+      '<button class="segPri" type="button">By priority</button>' +
+    '</div>' +
+    '<div class="rcList"></div>' +
+    '<button class="btn quiet wide btnCopy" type="button" style="margin-top:10px">📋 Copy the list</button>' +
+  '</section>' +
+
+  '<section class="pane flow" data-p="rcOne">' +
+    '<p class="eyebrow">Rechecking</p>' +
+    '<p class="big-name rcName"></p>' +
+    '<p class="sub rcCls"></p>' +
+    '<p class="eyebrow" style="margin-top:20px">Tap each one they have fixed</p>' +
+    '<div class="rcItems"></div>' +
+    '<div class="stack">' +
+      '<button class="btn good wide btnRcSave" type="button">Save</button>' +
+      '<button class="btn bad wide btnNoShow" type="button">Didn\'t show up</button>' +
+      '<button class="btn plain btnRcBack" type="button">Back to the list</button>' +
+    '</div>' +
+  '</section>' +
+
 '</div>' +
 '<div class="nudge"></div>';
 
@@ -603,10 +602,10 @@ function Sim(root, startAt){
   Array.prototype.forEach.call(root.querySelectorAll('.pane'), function(p){
     self.panes[p.getAttribute('data-p')] = p;
   });
-  this.bar    = this.$('.prog i');
-  this.back   = this.$('.back');
-  this.nudgeEl= this.$('.nudge');
-  this.hdrSub = this.$('.hdrSub');
+  this.bar     = this.$('.prog i');
+  this.back    = this.$('.back');
+  this.nudgeEl = this.$('.nudge');
+  this.hdrSub  = this.$('.hdrSub');
 
   this.bind();
   this.reset();
@@ -625,7 +624,13 @@ Sim.prototype.bind = function(){
   this.$('.btnUndo').onclick   = function(){ s.touch(); s.undo(); };
   this.$('.btnFinish').onclick = function(){ s.touch(); s.paintHome(); s.go('home'); };
   this.$('.btnStart').onclick  = function(){ s.touch(); s.go('find'); s.focusQ(); };
-  this.$('.btnRecheck').onclick= function(){ s.touch(); s.say('.mHome','The recheck list is described further down this page. It is not part of this practice.','warn'); };
+  this.$('.btnRecheck').onclick= function(){ s.touch(); s.openRecheck(); };
+  this.$('.segClass').onclick  = function(){ s.touch(); s.setRcMode('class'); };
+  this.$('.segPri').onclick    = function(){ s.touch(); s.setRcMode('pri'); };
+  this.$('.btnCopy').onclick   = function(){ s.touch(); s.say('.mRc','Copied. In the real app it is now on your clipboard, ready to paste into a message.','ok'); };
+  this.$('.btnRcSave').onclick = function(){ s.touch(); s.saveRecheck(false); };
+  this.$('.btnNoShow').onclick = function(){ s.touch(); s.saveRecheck(true); };
+  this.$('.btnRcBack').onclick = function(){ s.touch(); s.openRecheck(); };
   this.back.onclick            = function(){ s.touch(); s.goBack(); };
   this.root.addEventListener('pointerdown', function(){ s.touch(); });
 };
@@ -638,35 +643,41 @@ Sim.prototype.reset = function(){
   this.done     = 0;
   this.history  = [];
   this.open     = {};
+  this.rcMode   = 'class';
+  this.rcList   = freshRecheck();
+  this.rcFixed  = [];
   var self = this;
   ROSTER.forEach(function(st){ if (st.open) self.open[st.id] = st.open.slice(); });
 
   this.$('.q').value = '';
   this.$('.hits').innerHTML = '';
   this.$('.remarks').value = '';
-  this.say('.mFind',''); this.say('.mOff',''); this.say('.mHome','');
+  this.say('.mFind',''); this.say('.mOff',''); this.say('.mHome',''); this.say('.mRc','');
+  this.$('.segClass').classList.add('on');
+  this.$('.segPri').classList.remove('on');
+  this.current = null;
 
   if (this.startAt === 'done'){
-    /* Step 5 starts on a Saved screen, as though a student was just recorded. */
-    var st = ROSTER[6];                       /* ARTHUR BOGGLEWORTH */
+    var st = ROSTER[0];                       /* TAN AH KOW */
     this.student = st;
     this.lastEntry = {name:st.name, cls:st.cls, codes:['C1','C6'], id:st.id};
     this.recent = [
-      {name:st.name,        cls:st.cls,        what:'Hair Length/Thickness, Nails',   id:'e1'},
-      {name:ROSTER[2].name, cls:ROSTER[2].cls, what:'Inappropriate Shoes/Socks',      id:'e2'},
-      {name:ROSTER[5].name, cls:ROSTER[5].cls, what:'Hair Colour',                    id:'e3'}
+      {name:st.name,        cls:st.cls,        what:'Hair Length/Thickness, Nails'},
+      {name:ROSTER[2].name, cls:ROSTER[2].cls, what:'Inappropriate Shoes/Socks'},
+      {name:ROSTER[6].name, cls:ROSTER[6].cls, what:'Hair Colour'}
     ];
     this.done = 3;
     this.$('.dWhat').textContent = st.name + ' — Hair Length/Thickness, Nails';
     this.$('.btnUndo').style.display = 'block';
-    this.go('done', true);
+    this.go('done');
+  } else if (this.startAt === 'recheck'){
+    this.openRecheck();
   } else {
-    this.go('find', true);
+    this.go('find');
   }
 };
 
 Sim.prototype.focusQ = function(){
-  /* Only steal focus if the frame is already in view, so the page never jumps. */
   var self = this, box = this.root.getBoundingClientRect();
   if (box.top > 0 && box.bottom < window.innerHeight + 40){
     setTimeout(function(){ self.$('.q').focus({preventScroll:true}); }, 180);
@@ -680,7 +691,7 @@ Sim.prototype.say = function(sel, msg, kind){
   box.appendChild(el('div', 'note ' + (kind || 'err'), msg));
 };
 
-Sim.prototype.go = function(name, instant){
+Sim.prototype.go = function(name){
   var cur = this.current;
   if (cur && cur !== name){
     this.history.push(cur);
@@ -690,16 +701,14 @@ Sim.prototype.go = function(name, instant){
     setTimeout(function(){ old.classList.remove('out'); }, 430);
   }
   var next = this.panes[name];
-  /* Re-trigger the staggered entrance every time. */
   next.classList.remove('on');
   void next.offsetWidth;
   next.classList.add('on');
   this.current = name;
   this.bar.style.width = (PROGRESS[name] * 100) + '%';
-  this.back.classList.toggle('on', name === 'confirm' || name === 'offences');
+  this.back.classList.toggle('on', name === 'confirm' || name === 'offences' || name === 'rcOne');
   this.hdrSub.textContent = this.done ? '· ' + this.done + ' done' : '';
   this.armNudge();
-  if (instant) this.bar.style.width = (PROGRESS[name] * 100) + '%';
 };
 
 Sim.prototype.goBack = function(){
@@ -750,7 +759,7 @@ Sim.prototype.onSearch = function(){
     var s = this;
     b.onclick = function(){
       s.touch();
-      s.say('.mFind','That button is only for a student who is genuinely not on the list yet. It is explained further down this page.','warn');
+      s.say('.mFind','That is only for a student who is genuinely not on the list yet — a transfer. Otherwise, try another part of the name.','warn');
     };
     box.appendChild(b);
     return;
@@ -791,12 +800,7 @@ Sim.prototype.choose = function(st){
 
 Sim.prototype.proceed = function(){
   var openCodes = this.open[this.student.id] || [];
-  if (openCodes.length){
-    this.say('.mFind','');
-    this.showOffences(true);
-    return;
-  }
-  this.showOffences(false);
+  this.showOffences(openCodes.length > 0);
 };
 
 Sim.prototype.showOffences = function(isRecheck){
@@ -805,7 +809,7 @@ Sim.prototype.showOffences = function(isRecheck){
   this.$('.oWho').textContent = st.name + ' · ' + st.cls;
   this.$('.remarks').value = '';
   this.say('.mOff', isRecheck
-    ? 'This student already has something open, so the real app shows their recheck here instead. Practice carries on the same way.'
+    ? 'This student already has something open, so the real app shows their recheck here. Practice carries on the same way.'
     : '', 'warn');
   var box = this.$('.cats');
   box.innerHTML = '';
@@ -838,7 +842,7 @@ Sim.prototype.submit = function(){
   var what = codes.map(nameOf).join(', ');
   this.open[st.id] = (this.open[st.id] || []).concat(codes);
   this.lastEntry = {name:st.name, cls:st.cls, codes:codes, id:st.id};
-  this.recent.unshift({name:st.name, cls:st.cls, what:what, id:'e' + (Date.now?1:1) + this.recent.length + '' + Math.floor(this.done)});
+  this.recent.unshift({name:st.name, cls:st.cls, what:what});
   this.recent = this.recent.slice(0,10);
   this.done++;
   this.$('.dWhat').textContent = st.name + ' — ' + what;
@@ -900,9 +904,116 @@ Sim.prototype.paintHome = function(){
   });
 };
 
+/* ── the recheck list ───────────────────────────────────────────── */
+Sim.prototype.setRcMode = function(mode){
+  this.rcMode = mode;
+  this.$('.segClass').classList.toggle('on', mode === 'class');
+  this.$('.segPri').classList.toggle('on', mode === 'pri');
+  this.paintRecheck();
+};
+
+Sim.prototype.openRecheck = function(){
+  this.paintRecheck();
+  this.go('recheck');
+};
+
+Sim.prototype.paintRecheck = function(){
+  var s = this, box = this.$('.rcList');
+  box.innerHTML = '';
+  this.$('.rcCount').textContent = this.rcList.length
+    ? this.rcList.length + (this.rcList.length === 1 ? ' student outstanding' : ' students outstanding')
+    : 'Nobody outstanding';
+  if (!this.rcList.length){
+    box.appendChild(el('p','lede','Nothing outstanding. Everybody is clear.'));
+    return;
+  }
+
+  if (this.rcMode === 'class'){
+    var classes = [];
+    this.rcList.forEach(function(r){ if (classes.indexOf(r.cls) === -1) classes.push(r.cls); });
+    classes.sort();
+    classes.forEach(function(c){
+      box.appendChild(el('p','grouphead', c));
+      s.rcList.filter(function(r){ return r.cls === c; })
+        .forEach(function(r, i){ box.appendChild(s.rcRow(r, i + 1)); });
+    });
+  } else {
+    var rank = {'Did Not Report':0, 'Fail':1, '':2};
+    this.rcList.slice().sort(function(a,b){
+      return (rank[a.last] - rank[b.last]) || (b.days - a.days);
+    }).forEach(function(r, i){ box.appendChild(s.rcRow(r, i + 1)); });
+  }
+};
+
+Sim.prototype.rcRow = function(r, n){
+  var b = el('button','choice',
+    '<span class="key"></span><span class="txt"><b></b><span></span></span>' +
+    (r.last === 'Did Not Report' ? '<span class="flag">Didn\'t show</span>' : ''));
+  b.type = 'button';
+  b.querySelector('.key').textContent = String(n);
+  b.querySelector('b').textContent = r.name;
+  b.querySelector('.txt span').textContent =
+    r.codes.map(nameOf).join(', ') + ' · ' + r.days + ' days';
+  var s = this;
+  b.onclick = function(){ s.touch(); s.openRcOne(r); };
+  return b;
+};
+
+Sim.prototype.openRcOne = function(r){
+  var s = this;
+  this.rcStudent = r;
+  this.rcFixed = [];
+  this.$('.rcName').textContent = r.name;
+  this.$('.rcCls').textContent  = r.cls;
+  var box = this.$('.rcItems');
+  box.innerHTML = '';
+  r.codes.forEach(function(code, i){
+    var b = el('button','choice','<span class="key"></span><span class="txt"><b></b></span>');
+    b.type = 'button';
+    b.querySelector('.key').textContent = String(i + 1);
+    b.querySelector('b').textContent = nameOf(code);
+    b.onclick = function(){
+      s.touch();
+      var k = s.rcFixed.indexOf(code);
+      if (k === -1){ s.rcFixed.push(code); b.classList.add('sel'); }
+      else { s.rcFixed.splice(k,1); b.classList.remove('sel'); }
+    };
+    box.appendChild(b);
+  });
+  this.go('rcOne');
+};
+
+Sim.prototype.saveRecheck = function(noShow){
+  var r = this.rcStudent, s = this;
+  if (noShow){
+    r.last = 'Did Not Report';
+    r.days += 0;
+    this.openRecheck();
+    this.say('.mRc', r.name + ' marked as not turning up. They move to the top under <b>By priority</b>.', 'warn');
+    return;
+  }
+  var left = r.codes.filter(function(c){ return s.rcFixed.indexOf(c) === -1; });
+  if (!this.rcFixed.length){
+    this.openRecheck();
+    this.say('.mRc','Nothing was marked fixed, so ' + r.name + ' stays on the list.','warn');
+    return;
+  }
+  if (left.length){
+    r.codes = left;
+    r.last = 'Fail';
+    this.openRecheck();
+    this.say('.mRc', 'Saved. ' + r.name + ' still has ' + left.map(nameOf).join(', ') + ' open.', 'ok');
+  } else {
+    this.rcList = this.rcList.filter(function(x){ return x !== r; });
+    this.openRecheck();
+    this.say('.mRc', 'Saved. ' + r.name + ' is clear and off the list.', 'ok');
+  }
+};
+
 var sims = {
   sim1: new Sim(document.getElementById('sim1'), 'find'),
-  sim2: new Sim(document.getElementById('sim2'), 'done')
+  sim2: new Sim(document.getElementById('sim2'), 'done'),
+  sim3: new Sim(document.getElementById('sim3'), 'recheck')
 };
 
 Array.prototype.forEach.call(document.querySelectorAll('[data-restart]'), function(b){
