@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Grooming &amp; Attire Check — how to use it</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0..100,0..1&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#27326a; --accent-deep:#1b2450; --accent-tint:#e8eaf3;
+  --paper:#f7f5f1; --raised:#fffdfa; --line:#e4ded4;
+  --ink:#1b1e2b; --muted:#6e7180;
+  --good:#2f6b4f; --good-tint:#e6f0ea;
+  --warn:#8a5a12; --warn-tint:#f7edda;
+  --bad:#9d372e;  --bad-tint:#f7e8e5;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:'Public Sans',system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px;line-height:1.55;letter-spacing:-.005em;
+  padding:0 0 60px;
+}
+.page{max-width:600px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 60,'SOFT' 30,'WONK' 1;
+  font-weight:600;letter-spacing:-.018em;line-height:1.12;margin:0 0 10px}
+h1{font-size:38px}
+h2{font-size:27px}
+h3{font-size:19px;font-variation-settings:'opsz' 30,'SOFT' 30,'WONK' 1;margin:0 0 6px}
+p{margin:0 0 15px}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 12px}
+.lede{color:var(--muted);font-size:15.5px;margin:0 0 24px;max-width:34ch}
+.muted{color:var(--muted)}
+a{color:var(--accent);text-underline-offset:3px}
+
+/* ── masthead ─────────────────────────────────────────── */
+.mast{padding:34px 0 4px;border-bottom:1px solid var(--line);margin-bottom:34px}
+.brand{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 14,'SOFT' 40,'WONK' 1;
+  font-weight:600;font-size:14.5px;color:var(--accent);margin:0 0 22px}
+.mast .lede{margin-bottom:28px}
+
+/* ── numbered sections ────────────────────────────────── */
+section.step{padding:30px 0;border-top:1px solid var(--line)}
+section.step:first-of-type{border-top:0;padding-top:0}
+.num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;
+  background:var(--accent);color:#fff;font-size:13.5px;font-weight:600;margin-bottom:14px}
+ol.plain,ul.plain{margin:0 0 16px;padding-left:22px}
+ol.plain li,ul.plain li{margin-bottom:9px}
+.big-link{display:block;background:var(--raised);border:1.5px solid var(--line);border-radius:13px;
+  padding:16px 18px;margin:0 0 16px;font-weight:600;font-size:16px;color:var(--accent);
+  word-break:break-all;text-decoration:none;line-height:1.4;transition:border-color .2s,transform .16s var(--ease)}
+.big-link:hover{border-color:var(--accent);transform:translateY(-1.5px)}
+.big-link em{display:block;font-style:normal;font-weight:400;font-size:13px;color:var(--muted);
+  margin-top:4px;word-break:normal}
+.note{padding:13px 16px;border-radius:11px;font-size:14.5px;margin:0 0 18px;border-left:3px solid;line-height:1.5}
+.note.err{background:var(--bad-tint);color:var(--bad);border-color:var(--bad)}
+.note.warn{background:var(--warn-tint);color:var(--warn);border-color:var(--warn)}
+.note.ok{background:var(--good-tint);color:var(--good);border-color:var(--good)}
+kbd{font:inherit;font-weight:600;background:var(--accent-tint);color:var(--accent);
+  padding:1px 7px;border-radius:6px;white-space:nowrap}
+
+details.fold{border:1.5px solid var(--line);border-radius:13px;background:var(--raised);
+  margin:0 0 11px;overflow:hidden}
+details.fold summary{padding:15px 18px;cursor:pointer;font-weight:600;font-size:16px;
+  list-style:none;display:flex;align-items:center;gap:11px;transition:background .2s}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary::before{content:'+';color:var(--accent);font-weight:600;font-size:19px;
+  width:16px;flex:0 0 auto;line-height:1}
+details.fold[open] summary::before{content:'–'}
+details.fold summary:hover{background:var(--accent-tint)}
+details.fold .body{padding:2px 18px 18px;font-size:15.5px}
+details.fold .body p:last-child{margin-bottom:0}
+
+.divider{margin:46px 0 30px;text-align:center}
+.divider span{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);background:var(--paper);padding:0 14px}
+.divider{border-top:1px solid var(--line);line-height:0}
+.divider span{position:relative;top:-9px}
+
+/* ── the practice frame ───────────────────────────────── */
+.practice{margin:22px 0 10px}
+.pband{display:flex;align-items:center;gap:9px;background:var(--warn-tint);color:var(--warn);
+  border:1.5px solid #e9d9b8;border-bottom:0;border-radius:15px 15px 0 0;
+  padding:10px 16px;font-size:11.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase}
+.pband b{font-weight:600}
+.pdot{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:0 0 auto;
+  animation:pulse 2.4s var(--ease) infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.sim{position:relative;height:600px;max-height:80vh;min-height:460px;
+  border:1.5px solid var(--line);border-top:0;
+  border-radius:0 0 22px 22px;background:var(--paper);overflow:hidden;
+  box-shadow:0 2px 4px rgba(27,30,43,.05),0 22px 44px -30px rgba(39,50,106,.5);
+  display:flex;flex-direction:column}
+.simfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  margin-top:11px;font-size:13.5px;color:var(--muted)}
+.restart{border:0;background:none;font:inherit;font-size:13.5px;color:var(--muted);
+  cursor:pointer;padding:6px 2px;text-decoration:underline;text-underline-offset:3px}
+.restart:hover{color:var(--accent)}
+
+/* ── app interface, copied from the app itself ────────── */
+.sim .prog{height:2px;background:rgba(39,50,106,.10);flex:0 0 auto}
+.sim .prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .55s var(--ease)}
+.sim .top{flex:0 0 auto;padding:14px 22px 0;display:flex;align-items:center;
+  justify-content:space-between;min-height:42px}
+.sim .brand{font-size:14px;margin:0}
+.sim .brand em{font-style:normal;color:var(--muted);font-weight:400}
+.sim .back{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;
+  cursor:pointer;padding:6px 2px;opacity:0;pointer-events:none;transition:opacity .3s}
+.sim .back.on{opacity:1;pointer-events:auto}
+.sim .stage{flex:1;position:relative;overflow:hidden}
+.sim .pane{position:absolute;inset:0;padding:16px 22px 30px;
+  display:flex;flex-direction:column;justify-content:center;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  opacity:0;transform:translateY(22px);pointer-events:none;
+  transition:opacity .42s var(--ease),transform .42s var(--ease)}
+.sim .pane.on{opacity:1;transform:none;pointer-events:auto}
+.sim .pane.out{opacity:0;transform:translateY(-16px)}
+.sim .pane.flow{justify-content:flex-start;padding-top:8px}
+.sim .pane.on>*{animation:rise .5s var(--ease) backwards}
+.sim .pane.on>*:nth-child(1){animation-delay:.03s}
+.sim .pane.on>*:nth-child(2){animation-delay:.08s}
+.sim .pane.on>*:nth-child(3){animation-delay:.13s}
+.sim .pane.on>*:nth-child(4){animation-delay:.18s}
+.sim .pane.on>*:nth-child(5){animation-delay:.23s}
+.sim .pane.on>*:nth-child(6){animation-delay:.28s}
+.sim .pane.on>*:nth-child(7){animation-delay:.33s}
+@keyframes rise{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:none}}
+.sim h1,.sim h2{margin:0 0 8px}
+.sim h1{font-size:33px}
+.sim h2{font-size:26px}
+.sim .eyebrow{margin:0 0 11px}
+.sim .lede{font-size:15px;margin:0 0 20px}
+.sim .big-name{font-family:'Fraunces',Georgia,serif;
+  font-variation-settings:'opsz' 90,'SOFT' 20,'WONK' 1;
+  font-weight:600;font-size:33px;line-height:1.07;letter-spacing:-.025em;margin:0 0 6px}
+.sim .sub{color:var(--muted);font-size:15.5px;margin:0}
+.sim .field{margin-bottom:18px}
+.sim .field label{display:block;font-size:12.5px;font-weight:600;letter-spacing:.045em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.sim .field input,.sim .field textarea{width:100%;border:0;border-bottom:2px solid var(--line);
+  background:transparent;font:inherit;color:var(--ink);transition:border-color .28s var(--ease)}
+.sim .field input{font-size:21px;padding:6px 2px 10px}
+.sim .field textarea{font-size:15.5px;padding:8px 2px 10px;min-height:52px;resize:vertical;line-height:1.5}
+.sim .field input::placeholder,.sim .field textarea::placeholder{color:#b9b3a8}
+.sim .field input:focus,.sim .field textarea:focus{outline:none;border-bottom-color:var(--accent)}
+.sim .btn{display:inline-flex;align-items:center;justify-content:center;gap:11px;
+  border:0;border-radius:11px;background:var(--accent);color:#fff;
+  font:inherit;font-weight:600;font-size:16px;padding:14px 22px;cursor:pointer;
+  box-shadow:0 1px 2px rgba(27,30,43,.14),0 6px 18px -8px rgba(39,50,106,.55);
+  transition:transform .16s var(--ease),box-shadow .22s var(--ease),background .2s}
+.sim .btn:hover{background:var(--accent-deep);transform:translateY(-1.5px)}
+.sim .btn:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(27,30,43,.16)}
+.sim .btn.wide{width:100%}
+.sim .btn.quiet{background:transparent;color:var(--accent);box-shadow:none;border:1.5px solid var(--line)}
+.sim .btn.quiet:hover{background:var(--accent-tint);border-color:transparent}
+.sim .btn.plain{background:none;color:var(--muted);box-shadow:none;padding:11px 4px;font-weight:500;
+  justify-content:center;text-align:center}
+.sim .btn.plain:hover{color:var(--accent);background:none;transform:none}
+.sim .btn.good{background:var(--good);box-shadow:0 6px 18px -8px rgba(47,107,79,.55)}
+.sim .btn.good:hover{background:#255740}
+.sim .btn.bad{background:var(--bad);box-shadow:0 6px 18px -8px rgba(157,55,46,.5)}
+.sim .btn.bad:hover{background:#832e26}
+.sim .stack{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.sim .choice{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  padding:14px 16px;margin-bottom:9px;border:1.5px solid var(--line);
+  border-radius:13px;background:var(--raised);font:inherit;color:var(--ink);
+  cursor:pointer;transition:border-color .2s,background .2s,transform .16s var(--ease)}
+.sim .choice:hover{border-color:var(--accent);transform:translateX(2.5px)}
+.sim .choice:active{transform:translateX(1px) scale(.995)}
+.sim .choice .key{flex:0 0 auto;width:26px;height:26px;border-radius:7px;border:1.5px solid var(--line);
+  display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--muted);transition:all .2s}
+.sim .choice .txt{flex:1;min-width:0}
+.sim .choice .txt b{display:block;font-weight:600;font-size:16px;letter-spacing:-.01em}
+.sim .choice .txt span{display:block;font-size:13.5px;color:var(--muted);margin-top:1px}
+.sim .choice .flag{flex:0 0 auto;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;
+  background:var(--bad-tint);color:var(--bad)}
+.sim .choice.sel{border-color:var(--accent);background:var(--accent-tint)}
+.sim .choice.sel .key{background:var(--accent);border-color:var(--accent);color:#fff}
+.sim .note{margin-bottom:16px}
+.sim .tick{width:70px;height:70px;border-radius:50%;background:var(--good-tint);
+  display:grid;place-items:center;margin:0 auto 18px;animation:pop .55s var(--ease) backwards .08s}
+.sim .tick svg{width:32px;height:32px;stroke:var(--good);stroke-width:2.6;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:32;stroke-dashoffset:32;
+  animation:draw .5s var(--ease) forwards .3s}
+@keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.sim .centered{text-align:center}
+.sim .centered .lede{margin-left:auto;margin-right:auto}
+.sim .hint{font-size:12.5px;color:var(--muted);margin-top:16px;text-align:center}
+.sim .grouphead{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.14em;
+  text-transform:uppercase;margin:16px 0 9px}
+
+/* ── the nudge ────────────────────────────────────────── */
+.nudge{position:absolute;left:14px;right:14px;bottom:14px;z-index:5;
+  background:var(--accent);color:#fff;border-radius:13px;padding:13px 16px;
+  font-size:14.5px;line-height:1.45;
+  box-shadow:0 10px 30px -12px rgba(39,50,106,.85);
+  opacity:0;transform:translateY(14px);pointer-events:none;
+  transition:opacity .42s var(--ease),transform .42s var(--ease)}
+.nudge.on{opacity:1;transform:none}
+.nudge b{font-weight:600}
+
+/* ── printing: one side of A4 for the drawer ──────────── */
+.printonly{display:none}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff;font-size:10.4pt;line-height:1.42;padding:0}
+  .page,.mast,section.step,.divider,.practice,.simfoot,.screenonly,details.fold,.bottom{display:none!important}
+  .printonly{display:block;max-width:none;margin:0;padding:0;color:#000}
+  .printonly h1{font-size:21pt;margin:0 0 2mm}
+  .printonly .sub{font-size:9.4pt;color:#444;margin:0 0 5mm}
+  .printonly h2{font-size:12pt;margin:0 0 2mm;padding-top:3.5mm;border-top:.6pt solid #bbb}
+  .printonly .cols{display:flex;gap:8mm}
+  .printonly .col{flex:1}
+  .printonly ol,.printonly ul{margin:0 0 3mm;padding-left:5mm}
+  .printonly li{margin-bottom:1.4mm}
+  .printonly p{margin:0 0 2.6mm}
+  .printonly .foot{margin-top:4mm;padding-top:2.5mm;border-top:.6pt solid #bbb;
+    font-size:8.6pt;color:#444}
+  .printonly b{font-weight:600}
+}
+</style>
+</head>
+<body>
+
+<div class="page screenonly">
+
+  <header class="mast">
+    <p class="brand">SAJC Discipline Committee</p>
+    <h1>Grooming &amp; Attire Check</h1>
+    <p class="lede">How to use it. You have not missed anything — this is written for someone who has never opened it.</p>
+    <p class="note ok">You can practise on this page. There is a working copy of the app below with made-up students in it. Tapping anything in it is safe: nothing you do there is saved, and nobody sees it.</p>
+  </header>
+
+  <!-- 1 ─────────────────────────────────────────────── -->
+  <section class="step">
+    <span class="num">1</span>
+    <h2>What this is</h2>
+    <p>It is where you record what was called out at a grooming check, while the student is still standing in front of you.</p>
+    <p>It replaces the stack of paper that used to be typed up afterwards. Class tutors still tick their own namelists as they always have — this is only for the students sent to the front.</p>
+    <p>About five seconds a student, most of it deciding rather than waiting.</p>
+  </section>
+
+  <!-- 2 ─────────────────────────────────────────────── -->
+  <section class="step">
+    <span class="num">2</span>
+    <h2>How to open it</h2>
+    <p>There is nothing to install. It is a web page — you open it the same way you would open any website, in the browser you already have on your phone.</p>
+    <a class="big-link" href="https://sajc-discipline-comm.github.io/grooming-and-attire-check/" target="_blank" rel="noopener">
+      sajc-discipline-comm.github.io/grooming-and-attire-check
+      <em>Tap this to open it. There is no App Store, nothing to download, nothing to update.</em>
+    </a>
+    <p>It is worth putting it on your home screen so it sits with your other apps and you never have to find the link again.</p>
+
+    <details class="fold">
+      <summary>Put it on my home screen — iPhone</summary>
+      <div class="body">
+        <ol class="plain">
+          <li>Open the link above in <b>Safari</b>. It has to be Safari for this to work.</li>
+          <li>Tap the <b>share button</b> at the bottom of the screen — the square with an arrow pointing up out of it.</li>
+          <li>Scroll down the list and tap <b>Add to Home Screen</b>.</li>
+          <li>Tap <b>Add</b>, top right.</li>
+        </ol>
+        <p class="muted">It now sits on your home screen like any other app.</p>
+      </div>
+    </details>
+
+    <details class="fold">
+      <summary>Put it on my home screen — Android</summary>
+      <div class="body">
+        <ol class="plain">
+          <li>Open the link above in <b>Chrome</b>.</li>
+          <li>Tap the <b>three dots</b> at the top right.</li>
+          <li>Tap <b>Add to Home screen</b>. Some phones say <b>Install app</b> — either is the right one.</li>
+          <li>Tap <b>Add</b>, or <b>Install</b>.</li>
+        </ol>
+        <p class="muted">It now sits on your home screen like any other app.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- 3 ─────────────────────────────────────────────── -->
+  <section class="step">
+    <span class="num">3</span>
+    <h2>How to sign in</h2>
+    <p>Two things: <b>your name</b>, and <b>the password Kim gave you</b>. Then tap <kbd>Sign in</kbd>.</p>
+    <p>Put your own real name in. It is saved next to whatever you record, so the committee knows who did the checking — that is all it is for.</p>
+    <p>After you sign in it spends two or three seconds fetching the list of students. <b>That wait happens once.</b> Everything after it is instant, so sign in before you are standing in front of anybody, not while.</p>
+    <p class="muted">If you close the tab, you sign in again next time. Leaving it open in the background is fine.</p>
+  </section>
+
+  <!-- 4 ─────────────────────────────────────────────── -->
+  <section class="step">
+    <span class="num">4</span>
+    <h2>How to log a student</h2>
+    <p>Four taps, and then it repeats. Find them → check it is the right person → tap what was called out → save.</p>
+    <p><b>Try it now.</b> The frame below is a working copy with invented students in it. Type <kbd>art</kbd> in the box, or just a couple of letters, and follow it through. You cannot do any harm.</p>
+
+    <div class="practice">
+      <div class="pband"><span class="pdot"></span><span>Practice — <b>nothing here is real</b></span></div>
+      <div class="sim" id="sim1"></div>
+      <div class="simfoot">
+        <span>Made-up students. Nothing is saved.</span>
+        <button class="restart" data-restart="sim1">Start over</button>
+      </div>
+    </div>
+
+    <h3>The same thing in words</h3>
+    <ol class="plain">
+      <li><b>Find them.</b> Type any part of the name — two or three letters is usually enough — and tap them in the list. Typing a class code brings up that whole class.</li>
+      <li><b>Check it is the right student.</b> Their name and class are shown large. If it is not them, tap <kbd>No — go back</kbd>. Never wave one through.</li>
+      <li><b>Tap what was called out.</b> As many as apply. Nothing is recorded yet.</li>
+      <li><b>Tap <kbd>Save</kbd>.</b> Then <kbd>Next student</kbd>, and you are back at the search box.</li>
+    </ol>
+    <p class="muted">Thirty students in a row without ever leaving that loop.</p>
+  </section>
+
+  <!-- 5 ─────────────────────────────────────────────── -->
+  <section class="step">
+    <span class="num">5</span>
+    <h2>How to undo a mistake</h2>
+    <p>Everybody saves the wrong thing eventually. It takes one tap to take it back, and it only ever removes that one student — never anybody you did before them.</p>
+    <p><b>Straight away:</b> on the screen that says <b>Saved</b>, tap <kbd>That was wrong — undo</kbd>.</p>
+    <p><b>A few students later:</b> tap <kbd>Finish for now</kbd> to get back to the front screen. Under <b>Entered this session</b> are the last ten students you recorded. Tap one to take it back.</p>
+    <p>Practise both here — the frame starts on the Saved screen.</p>
+
+    <div class="practice">
+      <div class="pband"><span class="pdot"></span><span>Practice — <b>nothing here is real</b></span></div>
+      <div class="sim" id="sim2"></div>
+      <div class="simfoot">
+        <span>Made-up students. Nothing is saved.</span>
+        <button class="restart" data-restart="sim2">Start over</button>
+      </div>
+    </div>
+
+    <p class="note ok">Older than the last ten, or a mistake found the next day? Tell Kim. It is a small fix in the spreadsheet and it is not a problem.</p>
+  </section>
+
+  <div class="divider"><span>More, when you need it</span></div>
+  <p class="lede">You do not need any of this to do the job. It is here for the day something is not obvious.</p>
+
+  <details class="fold">
+    <summary>Scanning a student card instead of typing</summary>
+    <div class="body">
+      <p>On the search screen, tap <kbd>📷 Scan their card instead</kbd>. Fit the whole card inside the box on screen, make sure the name is sharp, and press the round button.</p>
+      <p>It reads the name off the photo, so the reading is only ever as good as the picture. If it comes back with several possible students, it is telling you it is not certain which one — read them properly and pick the right one. It is built to ask rather than guess, because a grooming record filed against the wrong student is not caught by anything later.</p>
+      <p>If it cannot read the card at all, tap <kbd>Type it</kbd> and search for the name. That is not a workaround; it is there for exactly this.</p>
+    </div>
+  </details>
+
+  <details class="fold">
+    <summary>The recheck list — when students come back</summary>
+    <div class="body">
+      <p>Days later, students come back to show they have fixed something. Tap <kbd>Recheck list</kbd> on the front screen.</p>
+      <p>Two ways to sort it, one tap apart. <b>By class</b> when you are calling names out. <b>By priority</b> when you are chasing — the ones who did not turn up last time come to the top.</p>
+      <p>Tap a student, then tap each item they have <b>fixed</b>. Anything you do not tap stays open, so you can clear one thing and leave another. If they were called and did not appear, tap <kbd>Didn't show up</kbd> — that marks them and pushes them up the list.</p>
+      <p><kbd>📋 Copy the list</kbd> puts the whole list on your clipboard as plain text, ready to paste into a message.</p>
+    </div>
+  </details>
+
+  <details class="fold">
+    <summary>Remarks — the box under the offences</summary>
+    <div class="body">
+      <p>Optional. It is for when the category does not quite cover what you saw — <i>thickness rather than length</i>, that sort of thing. Leave it empty the rest of the time.</p>
+    </div>
+  </details>
+
+  <details class="fold">
+    <summary>The name will not come up</summary>
+    <div class="body">
+      <p>Almost always a spelling difference. Try a different part of the name — a middle name, or the last word of it — or type their class code to bring up the whole class and find them by eye.</p>
+      <p>Only if they are genuinely not there, tap <kbd>Record anyway — not in the roster yet</kbd>. "Roster" is just the list of students' names. That button is for a student who has transferred in and has not been added to the list yet. It records them under the name you typed, marks it so somebody can tidy it up afterwards, and nothing is lost.</p>
+    </div>
+  </details>
+
+  <details class="fold">
+    <summary>The amber messages, and what they mean</summary>
+    <div class="body">
+      <p><b>"Already open: Hair Colour"</b> — on the confirm screen. This student already has that offence outstanding from a previous check. The button underneath changes to <kbd>Yes — recheck them</kbd>, and tapping it takes you to their recheck rather than a fresh check. Nothing is wrong.</p>
+      <p><b>"No Student ID — recorded for linking up later"</b> — you used <i>Record anyway</i> for someone not on the list. It is a note to whoever tidies up, not a problem for you.</p>
+      <p class="muted">Amber in this app never means you have broken something. It means: notice this.</p>
+    </div>
+  </details>
+
+  <details class="fold">
+    <summary>Worth knowing</summary>
+    <div class="body">
+      <ul class="plain">
+        <li><b>It needs internet.</b> With no signal it says so plainly rather than pretending to save.</li>
+        <li><b>Nothing is stored on your phone.</b> Close the tab and it is gone from the phone. The record itself lives in the committee's spreadsheet.</li>
+        <li><b>Two of you can use it at the same time.</b> You will not overwrite each other, and your undo can never remove somebody else's student.</li>
+        <li><b>You cannot break it by tapping around.</b> Nothing is recorded until you press <kbd>Save</kbd>.</li>
+        <li><b>Checked the same student for the same thing twice?</b> It refuses, and says so. There is simply nothing to add.</li>
+        <li><b>Somebody edited the student list while you were working?</b> <kbd>↻ Refresh the roster</kbd> on the front screen pulls the list of names again.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="fold">
+    <summary>It will not work at all</summary>
+    <div class="body">
+      <p>If the page opens but nothing you do goes through — it will not sign you in, or it says it cannot reach the records — that is on the spreadsheet side, not yours. Nothing you did caused it and nothing you can tap will fix it.</p>
+      <p><b>Tell Kim, and say what you were doing when it stopped.</b> There is a check she can run that says which of three things it is, and it is usually a two-minute fix.</p>
+    </div>
+  </details>
+
+  <div class="bottom" style="margin-top:44px;padding-top:26px;border-top:1px solid var(--line)">
+    <p class="eyebrow">One more thing</p>
+    <p>If you print this page, you get a single sheet with just the loop, the undo, and the what-if-it-goes-wrong list. Good for the staffroom drawer.</p>
+    <p class="muted" style="font-size:14px">Written for the Discipline Committee · August 2026 · Every student in the practice app is invented.</p>
+  </div>
+
+</div>
+
+<!-- ── the drawer copy: printing gives you exactly this ───────────── -->
+<div class="printonly">
+  <h1>Grooming &amp; Attire Check</h1>
+  <p class="sub">sajc-discipline-comm.github.io/grooming-and-attire-check · a web page, nothing to install · sign in with your name and the password Kim gave you</p>
+
+  <h2>The loop — four taps, then it repeats</h2>
+  <div class="cols">
+    <div class="col">
+      <ol>
+        <li><b>Find them.</b> Type two or three letters of the name, or a class code, and tap them in the list. Or tap <b>Scan their card instead</b>.</li>
+        <li><b>Check it is them.</b> Name and class are shown large. Not them? <b>No — go back</b>.</li>
+      </ol>
+    </div>
+    <div class="col">
+      <ol start="3">
+        <li><b>Tap what was called out.</b> As many as apply. Remarks box only if the category does not cover it.</li>
+        <li><b>Save</b>, then <b>Next student</b>.</li>
+      </ol>
+    </div>
+  </div>
+  <p>Sign in <b>before</b> assembly — it takes two or three seconds to fetch the names, and that wait only happens once.</p>
+
+  <h2>Undoing a mistake</h2>
+  <ul>
+    <li><b>Straight away</b> — on the <b>Saved</b> screen, tap <b>That was wrong — undo</b>.</li>
+    <li><b>A few students later</b> — <b>Finish for now</b>, then under <b>Entered this session</b> tap the student to take it back. Last ten.</li>
+    <li><b>Longer ago</b> — tell Kim. It is a small fix and it is not a problem.</li>
+  </ul>
+  <p>Undo only ever removes that one student. It never touches anybody you did before them, or anybody another person recorded.</p>
+
+  <h2>When something is not obvious</h2>
+  <ul>
+    <li><b>Card will not scan</b> — tap <b>Type it</b> and search the name. That is what it is there for.</li>
+    <li><b>It offers several students</b> — it is not certain which one. Read them and pick.</li>
+    <li><b>Name will not come up</b> — nearly always a spelling difference. Try a different part of the name, or the class code. Genuinely not there: <b>Record anyway</b> (for a transfer not yet added to the list).</li>
+    <li><b>Amber "Already open: …"</b> — they still have that offence outstanding. The button becomes <b>Yes — recheck them</b>. Nothing is wrong.</li>
+    <li><b>"Already recorded"</b> — same offence, same student, still open. Nothing to add.</li>
+    <li><b>No signal</b> — it says so rather than pretending to save.</li>
+    <li><b>Nothing works at all</b> — spreadsheet side, not yours. Tell Kim what you were doing when it stopped.</li>
+  </ul>
+
+  <h2>Students coming back to be rechecked</h2>
+  <p><b>Recheck list</b> on the front screen. <b>By class</b> for calling out, <b>by priority</b> for chasing. Tap the student, tap each item they have <b>fixed</b> — anything untapped stays open. Called and did not appear: <b>Didn't show up</b>.</p>
+
+  <p class="foot">Nothing is recorded until you press Save · nothing is stored on your phone · two people can use it at once · you cannot break it by tapping around.</p>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* Invented students. No real name appears anywhere in this file. */
+var ROSTER = [
+  {id:'X1', name:'ARTEMIS QUAYLE-BRIGHT',       cls:'26X99', g:'Male'},
+  {id:'X2', name:'BUNTY FEATHERSTONE-HAUGH',    cls:'26X99', g:'Female'},
+  {id:'X3', name:'CORVUS PENNYWHISTLE',         cls:'26X99', g:'Male'},
+  {id:'X4', name:'DAHLIA MOONWRIGHT-OBI',       cls:'26X98', g:'Female', open:['C2']},
+  {id:'X5', name:'ELDRIC SNODGRASS',            cls:'26X98', g:'Male'},
+  {id:'X6', name:'FENELLA THISTLEWAITE',        cls:'26X98', g:'Female'},
+  {id:'X7', name:'ARTHUR BOGGLEWORTH',          cls:'26X98', g:'Male'}
+];
+
+/* The category list, as the app draws it from the spreadsheet.
+   A blank label means: do not offer this one to that gender. */
+var CATS = [
+  {code:'C1', name:'Hair Length/Thickness',              boys:'Hair Length/Thickness',              girls:'Hair Length/Thickness'},
+  {code:'C2', name:'Hair Colour',                        boys:'Hair Colour',                        girls:'Hair Colour'},
+  {code:'C3', name:'Sideburns/Facial Hair',              boys:'Sideburns/Facial Hair',              girls:''},
+  {code:'C4', name:'Skirt Length/Tapered Pants',         boys:'Tapered Pants',                      girls:'Skirt Length'},
+  {code:'C5', name:'Multiple Earrings/Other Accessories',boys:'Multiple Earrings/Other Accessories',girls:'Multiple Earrings/Other Accessories'},
+  {code:'C6', name:'Nails',                              boys:'Nails',                              girls:'Nails'},
+  {code:'C7', name:'Inappropriate Shoes/Socks',          boys:'Inappropriate Shoes/Socks',          girls:'Inappropriate Shoes/Socks'},
+  {code:'C8', name:'Others',                             boys:'Others',                             girls:'Others'}
+];
+
+var PROGRESS = {find:0.15, confirm:0.45, offences:0.75, done:1, home:0.02};
+
+var NUDGE = {
+  find:     'Type <b>art</b> in the box — just three letters — then tap the name that appears.',
+  confirm:  'Check the name and class. If it is the right student, tap <b>Yes, continue</b>.',
+  offences: 'Tap whatever was called out — one, or several. Then tap <b>Save</b>.',
+  done:     'Try <b>That was wrong — undo</b>. Nothing here is real, so nothing is lost.',
+  home:     'Under <b>Entered this session</b>, tap a student to take that entry back.'
+};
+
+function el(tag, cls, html){
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+function labelFor(cat, gender){
+  var g = String(gender||'').toUpperCase();
+  if (g.indexOf('M') === 0) return cat.boys;
+  if (g.indexOf('F') === 0) return cat.girls;
+  return cat.name;
+}
+function nameOf(code){
+  for (var i=0;i<CATS.length;i++) if (CATS[i].code === code) return CATS[i].name;
+  return code;
+}
+
+var MARKUP =
+'<div class="prog"><i></i></div>' +
+'<div class="top">' +
+  '<div class="brand">SAJC Discipline Committee <em class="hdrSub"></em></div>' +
+  '<button class="back" type="button">&larr; Back</button>' +
+'</div>' +
+'<div class="stage">' +
+
+  '<section class="pane flow" data-p="find">' +
+    '<p class="eyebrow">Who is it?</p>' +
+    '<h2>Find the student</h2>' +
+    '<div class="mFind"></div>' +
+    '<div class="field" style="margin-top:12px">' +
+      '<label>Type any part of the name, or a class</label>' +
+      '<input class="q" autocomplete="off" autocapitalize="characters" spellcheck="false">' +
+    '</div>' +
+    '<div class="hits"></div>' +
+    '<button class="btn quiet wide scanBtn" type="button" style="margin-top:6px">📷 Scan their card instead</button>' +
+  '</section>' +
+
+  '<section class="pane" data-p="confirm">' +
+    '<p class="eyebrow">Is this the right student?</p>' +
+    '<p class="big-name cName"></p>' +
+    '<p class="sub cCls"></p>' +
+    '<div class="cOpen" style="margin-top:20px"></div>' +
+    '<div class="stack">' +
+      '<button class="btn wide btnProceed" type="button">Yes, continue</button>' +
+      '<button class="btn plain wide btnNo" type="button">No — go back</button>' +
+    '</div>' +
+  '</section>' +
+
+  '<section class="pane flow" data-p="offences">' +
+    '<p class="eyebrow oWho"></p>' +
+    '<h2>Select Relevant Offences</h2>' +
+    '<div class="mOff"></div>' +
+    '<div class="cats"></div>' +
+    '<div class="field" style="margin-top:14px">' +
+      '<label>Remarks</label>' +
+      '<textarea class="remarks" placeholder="Anything the category doesn\'t capture"></textarea>' +
+    '</div>' +
+    '<button class="btn good wide btnSubmit" type="button">Save</button>' +
+    '<button class="btn plain btnCancel" type="button">Cancel</button>' +
+  '</section>' +
+
+  '<section class="pane centered" data-p="done">' +
+    '<div class="tick"><svg viewBox="0 0 24 24"><polyline points="4,12.5 9.5,18 20,6.5"></polyline></svg></div>' +
+    '<h2>Saved</h2>' +
+    '<p class="lede dWhat"></p>' +
+    '<div class="stack">' +
+      '<button class="btn wide btnNext" type="button">Next student</button>' +
+      '<button class="btn plain wide btnUndo" type="button">That was wrong — undo</button>' +
+      '<button class="btn plain wide btnFinish" type="button">Finish for now</button>' +
+    '</div>' +
+  '</section>' +
+
+  '<section class="pane flow" data-p="home">' +
+    '<p class="eyebrow homeEyebrow"></p>' +
+    '<h1>Ready.</h1>' +
+    '<p class="lede homeStats"></p>' +
+    '<div class="mHome"></div>' +
+    '<div class="stack">' +
+      '<button class="btn wide btnStart" type="button">Start checking</button>' +
+      '<button class="btn quiet wide btnRecheck" type="button">Recheck list</button>' +
+    '</div>' +
+    '<div class="recentWrap" style="display:none;margin-top:24px">' +
+      '<p class="eyebrow">Entered this session</p>' +
+      '<div class="recentList"></div>' +
+    '</div>' +
+  '</section>' +
+
+'</div>' +
+'<div class="nudge"></div>';
+
+function Sim(root, startAt){
+  var self = this;
+  this.root = root;
+  this.startAt = startAt;
+  root.innerHTML = MARKUP;
+
+  this.$ = function(sel){ return root.querySelector(sel); };
+  this.panes = {};
+  Array.prototype.forEach.call(root.querySelectorAll('.pane'), function(p){
+    self.panes[p.getAttribute('data-p')] = p;
+  });
+  this.bar    = this.$('.prog i');
+  this.back   = this.$('.back');
+  this.nudgeEl= this.$('.nudge');
+  this.hdrSub = this.$('.hdrSub');
+
+  this.bind();
+  this.reset();
+}
+
+Sim.prototype.bind = function(){
+  var s = this;
+  this.$('.q').addEventListener('input', function(){ s.touch(); s.onSearch(); });
+  this.$('.q').addEventListener('focus',  function(){ s.touch(); });
+  this.$('.scanBtn').onclick   = function(){ s.touch(); s.say('.mFind','The real app opens your camera here. In practice, type the name instead.','warn'); };
+  this.$('.btnProceed').onclick= function(){ s.touch(); s.proceed(); };
+  this.$('.btnNo').onclick     = function(){ s.touch(); s.go('find'); s.focusQ(); };
+  this.$('.btnSubmit').onclick = function(){ s.touch(); s.submit(); };
+  this.$('.btnCancel').onclick = function(){ s.touch(); s.go('find'); s.focusQ(); };
+  this.$('.btnNext').onclick   = function(){ s.touch(); s.nextStudent(); };
+  this.$('.btnUndo').onclick   = function(){ s.touch(); s.undo(); };
+  this.$('.btnFinish').onclick = function(){ s.touch(); s.paintHome(); s.go('home'); };
+  this.$('.btnStart').onclick  = function(){ s.touch(); s.go('find'); s.focusQ(); };
+  this.$('.btnRecheck').onclick= function(){ s.touch(); s.say('.mHome','The recheck list is described further down this page. It is not part of this practice.','warn'); };
+  this.back.onclick            = function(){ s.touch(); s.goBack(); };
+  this.root.addEventListener('pointerdown', function(){ s.touch(); });
+};
+
+Sim.prototype.reset = function(){
+  this.student  = null;
+  this.selected = [];
+  this.recent   = [];
+  this.lastEntry= null;
+  this.done     = 0;
+  this.history  = [];
+  this.open     = {};
+  var self = this;
+  ROSTER.forEach(function(st){ if (st.open) self.open[st.id] = st.open.slice(); });
+
+  this.$('.q').value = '';
+  this.$('.hits').innerHTML = '';
+  this.$('.remarks').value = '';
+  this.say('.mFind',''); this.say('.mOff',''); this.say('.mHome','');
+
+  if (this.startAt === 'done'){
+    /* Step 5 starts on a Saved screen, as though a student was just recorded. */
+    var st = ROSTER[6];                       /* ARTHUR BOGGLEWORTH */
+    this.student = st;
+    this.lastEntry = {name:st.name, cls:st.cls, codes:['C1','C6'], id:st.id};
+    this.recent = [
+      {name:st.name,        cls:st.cls,        what:'Hair Length/Thickness, Nails',   id:'e1'},
+      {name:ROSTER[2].name, cls:ROSTER[2].cls, what:'Inappropriate Shoes/Socks',      id:'e2'},
+      {name:ROSTER[5].name, cls:ROSTER[5].cls, what:'Hair Colour',                    id:'e3'}
+    ];
+    this.done = 3;
+    this.$('.dWhat').textContent = st.name + ' — Hair Length/Thickness, Nails';
+    this.$('.btnUndo').style.display = 'block';
+    this.go('done', true);
+  } else {
+    this.go('find', true);
+  }
+};
+
+Sim.prototype.focusQ = function(){
+  /* Only steal focus if the frame is already in view, so the page never jumps. */
+  var self = this, box = this.root.getBoundingClientRect();
+  if (box.top > 0 && box.bottom < window.innerHeight + 40){
+    setTimeout(function(){ self.$('.q').focus({preventScroll:true}); }, 180);
+  }
+};
+
+Sim.prototype.say = function(sel, msg, kind){
+  var box = this.$(sel);
+  box.innerHTML = '';
+  if (!msg) return;
+  box.appendChild(el('div', 'note ' + (kind || 'err'), msg));
+};
+
+Sim.prototype.go = function(name, instant){
+  var cur = this.current;
+  if (cur && cur !== name){
+    this.history.push(cur);
+    var old = this.panes[cur];
+    old.classList.remove('on');
+    old.classList.add('out');
+    setTimeout(function(){ old.classList.remove('out'); }, 430);
+  }
+  var next = this.panes[name];
+  /* Re-trigger the staggered entrance every time. */
+  next.classList.remove('on');
+  void next.offsetWidth;
+  next.classList.add('on');
+  this.current = name;
+  this.bar.style.width = (PROGRESS[name] * 100) + '%';
+  this.back.classList.toggle('on', name === 'confirm' || name === 'offences');
+  this.hdrSub.textContent = this.done ? '· ' + this.done + ' done' : '';
+  this.armNudge();
+  if (instant) this.bar.style.width = (PROGRESS[name] * 100) + '%';
+};
+
+Sim.prototype.goBack = function(){
+  var prev = this.history.pop();
+  if (!prev) return;
+  this.history.pop();
+  this.go(prev);
+};
+
+/* ── the nudge: a hint, only if somebody has stalled ─────────────── */
+Sim.prototype.armNudge = function(){
+  var s = this;
+  clearTimeout(this._nt);
+  this.nudgeEl.classList.remove('on');
+  var text = NUDGE[this.current];
+  if (!text) return;
+  this._nt = setTimeout(function(){
+    if (!s.inView()) { s.armNudge(); return; }
+    s.nudgeEl.innerHTML = text;
+    s.nudgeEl.classList.add('on');
+  }, 8000);
+};
+Sim.prototype.touch = function(){ this.armNudge(); };
+Sim.prototype.inView = function(){
+  var b = this.root.getBoundingClientRect();
+  return b.bottom > 60 && b.top < window.innerHeight - 60;
+};
+
+/* ── search, the same shape as the real one ─────────────────────── */
+Sim.prototype.onSearch = function(){
+  var q = this.$('.q').value.trim().toUpperCase();
+  var box = this.$('.hits');
+  box.innerHTML = '';
+  this.say('.mFind','');
+  if (q.length < 2) return;
+
+  var isClass = /^\d\d[A-Z]\d\d$/.test(q);
+  var hits = ROSTER.filter(function(st){
+    if (isClass) return st.cls === q;
+    return st.name.split(/[\s-]+/).some(function(w){ return w.indexOf(q) === 0; })
+        || st.name.indexOf(q) === 0;
+  }).slice(0, 8);
+
+  if (!hits.length){
+    box.appendChild(el('p','lede','Nobody matches that.'));
+    var b = el('button','btn quiet wide','Record anyway — not in the roster yet');
+    b.type = 'button';
+    var s = this;
+    b.onclick = function(){
+      s.touch();
+      s.say('.mFind','That button is only for a student who is genuinely not on the list yet. It is explained further down this page.','warn');
+    };
+    box.appendChild(b);
+    return;
+  }
+  var self = this;
+  hits.forEach(function(st, i){ box.appendChild(self.hitRow(st, i + 1)); });
+};
+
+Sim.prototype.hitRow = function(st, n){
+  var openCodes = this.open[st.id] || [];
+  var b = el('button','choice',
+    '<span class="key"></span><span class="txt"><b></b><span></span></span>' +
+    (openCodes.length ? '<span class="flag">Recheck</span>' : ''));
+  b.type = 'button';
+  b.querySelector('.key').textContent = String(n);
+  b.querySelector('b').textContent = st.name;
+  b.querySelector('.txt span').textContent = st.cls + ' · ' + st.g;
+  var s = this;
+  b.onclick = function(){ s.touch(); s.choose(st); };
+  return b;
+};
+
+Sim.prototype.choose = function(st){
+  this.student = st;
+  this.$('.cName').textContent = st.name;
+  this.$('.cCls').textContent  = st.cls + ' · ' + st.g;
+  var box = this.$('.cOpen');
+  box.innerHTML = '';
+  var openCodes = this.open[st.id] || [];
+  if (openCodes.length){
+    box.appendChild(el('div','note warn','Already open: ' + openCodes.map(nameOf).join(', ')));
+    this.$('.btnProceed').textContent = 'Yes — recheck them';
+  } else {
+    this.$('.btnProceed').textContent = 'Yes, continue';
+  }
+  this.go('confirm');
+};
+
+Sim.prototype.proceed = function(){
+  var openCodes = this.open[this.student.id] || [];
+  if (openCodes.length){
+    this.say('.mFind','');
+    this.showOffences(true);
+    return;
+  }
+  this.showOffences(false);
+};
+
+Sim.prototype.showOffences = function(isRecheck){
+  var s = this, st = this.student;
+  this.selected = [];
+  this.$('.oWho').textContent = st.name + ' · ' + st.cls;
+  this.$('.remarks').value = '';
+  this.say('.mOff', isRecheck
+    ? 'This student already has something open, so the real app shows their recheck here instead. Practice carries on the same way.'
+    : '', 'warn');
+  var box = this.$('.cats');
+  box.innerHTML = '';
+  var n = 0;
+  CATS.forEach(function(c){
+    var label = labelFor(c, st.g);
+    if (!label) return;
+    n++;
+    var b = el('button','choice','<span class="key"></span><span class="txt"><b></b></span>');
+    b.type = 'button';
+    b.querySelector('.key').textContent = String(n);
+    b.querySelector('b').textContent = label;
+    b.onclick = function(){
+      s.touch();
+      var i = s.selected.indexOf(c.code);
+      if (i === -1){ s.selected.push(c.code); b.classList.add('sel'); }
+      else { s.selected.splice(i,1); b.classList.remove('sel'); }
+    };
+    box.appendChild(b);
+  });
+  this.go('offences');
+};
+
+Sim.prototype.submit = function(){
+  if (!this.selected.length){
+    this.say('.mOff','Tap at least one category, or cancel.');
+    return;
+  }
+  var st = this.student, codes = this.selected.slice();
+  var what = codes.map(nameOf).join(', ');
+  this.open[st.id] = (this.open[st.id] || []).concat(codes);
+  this.lastEntry = {name:st.name, cls:st.cls, codes:codes, id:st.id};
+  this.recent.unshift({name:st.name, cls:st.cls, what:what, id:'e' + (Date.now?1:1) + this.recent.length + '' + Math.floor(this.done)});
+  this.recent = this.recent.slice(0,10);
+  this.done++;
+  this.$('.dWhat').textContent = st.name + ' — ' + what;
+  this.$('.btnUndo').style.display = 'block';
+  this.go('done');
+};
+
+Sim.prototype.undo = function(){
+  var e = this.lastEntry;
+  if (!e) return;
+  var keep = [];
+  (this.open[e.id] || []).forEach(function(c){ if (e.codes.indexOf(c) === -1) keep.push(c); });
+  if (keep.length) this.open[e.id] = keep; else delete this.open[e.id];
+  var name = e.name, cls = e.cls;
+  this.recent = this.recent.filter(function(r){ return !(r.name === name && r.cls === cls); });
+  this.lastEntry = null;
+  this.done = Math.max(0, this.done - 1);
+  this.$('.btnUndo').style.display = 'none';
+  this.$('.dWhat').textContent = 'Removed. Nothing was recorded for this student.';
+  this.hdrSub.textContent = this.done ? '· ' + this.done + ' done' : '';
+  this.armNudge();
+};
+
+Sim.prototype.nextStudent = function(){
+  this.student = null;
+  this.selected = [];
+  this.$('.q').value = '';
+  this.$('.hits').innerHTML = '';
+  this.say('.mFind','');
+  this.go('find');
+  this.focusQ();
+};
+
+Sim.prototype.paintHome = function(){
+  var s = this;
+  this.$('.homeEyebrow').textContent = 'Sunday, 2 August 2026';
+  this.$('.homeStats').textContent = this.done
+    ? this.done + (this.done === 1 ? ' student recorded this session.' : ' students recorded this session.')
+    : 'Nothing recorded yet this session.';
+  var wrap = this.$('.recentWrap'), list = this.$('.recentList');
+  if (!this.recent.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  list.innerHTML = '';
+  this.recent.forEach(function(r){
+    var b = el('button','choice','<span class="key">✕</span><span class="txt"><b></b><span></span></span>');
+    b.type = 'button';
+    b.querySelector('b').textContent = r.name;
+    b.querySelector('.txt span').textContent = r.cls + ' · ' + r.what;
+    b.onclick = function(){
+      s.touch();
+      s.recent = s.recent.filter(function(x){ return x !== r; });
+      s.done = Math.max(0, s.done - 1);
+      if (s.lastEntry && s.lastEntry.name === r.name) s.lastEntry = null;
+      s.say('.mHome','Removed.','ok');
+      s.paintHome();
+      s.hdrSub.textContent = s.done ? '· ' + s.done + ' done' : '';
+    };
+    list.appendChild(b);
+  });
+};
+
+var sims = {
+  sim1: new Sim(document.getElementById('sim1'), 'find'),
+  sim2: new Sim(document.getElementById('sim2'), 'done')
+};
+
+Array.prototype.forEach.call(document.querySelectorAll('[data-restart]'), function(b){
+  b.onclick = function(){ sims[b.getAttribute('data-restart')].reset(); };
+});
+
+})();
+</script>
+</body>
+</html>
