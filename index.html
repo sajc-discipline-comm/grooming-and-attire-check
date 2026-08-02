@@ -131,6 +131,22 @@ h2{font-size:28px}
 .field input::placeholder,.field textarea::placeholder{color:#b9b3a8}
 .field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--accent)}
 
+/* password reveal */
+.field.reveal{position:relative}
+.field.reveal input{padding-right:46px}
+.eye{
+  position:absolute;right:-6px;bottom:2px;width:44px;height:44px;
+  display:grid;place-items:center;border:0;background:none;padding:0;cursor:pointer;
+  color:var(--muted);transition:color .2s var(--ease);
+}
+.eye:hover{color:var(--accent)}
+.eye:focus-visible{outline:2px solid var(--accent);outline-offset:-8px;border-radius:11px}
+.eye svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.eye.on{color:var(--accent)}
+.eye .slash{stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .42s var(--ease)}
+.eye.on .slash{stroke-dashoffset:0}
+
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:11px;
   border:0;border-radius:11px;background:var(--accent);color:#fff;
@@ -147,6 +163,7 @@ h2{font-size:28px}
 .btn.plain{background:none;color:var(--muted);box-shadow:none;padding:12px 4px;font-weight:500;
   justify-content:center;text-align:center}
 .btn.plain:hover{color:var(--accent);background:none;transform:none}
+a.btn.plain{text-decoration:none;margin-top:4px}
 .btn.good{background:var(--good);box-shadow:0 6px 18px -8px rgba(47,107,79,.55)}
 .btn.good:hover{background:#255740}
 .btn.bad{background:var(--bad);box-shadow:0 6px 18px -8px rgba(157,55,46,.5)}
@@ -258,8 +275,16 @@ canvas{display:none}
   <div class="field">
     <label for="pw">Password</label>
     <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button class="eye" id="eye" type="button" onclick="togglePw()" aria-label="Show the password">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z"/>
+        <circle cx="12" cy="12" r="3.1"/>
+        <line class="slash" x1="4.2" y1="19.8" x2="19.8" y2="4.2"/>
+      </svg>
+    </button>
   </div>
   <button class="btn wide" id="btnLogin" onclick="doLogin()">Sign in</button>
+  <a class="btn plain wide" href="help.html" target="_blank" rel="noopener">Click here for the help guide.</a>
 </section>
 
 <!-- 2 · LOADING -->
@@ -366,7 +391,6 @@ canvas{display:none}
   <button class="btn good wide" id="btnSubmit" onclick="submitCheck()">Save</button>
   <button class="btn plain" onclick="go('find')">Cancel</button>
 </section>
-
 <!-- 7 · SAVED -->
 <section class="pane centered" id="pDone">
   <div class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
@@ -498,6 +522,14 @@ function post(action, body){
 }
 
 /* ── login ──────────────────────────────────────────────────────────── */
+function togglePw(){
+  var i = document.getElementById('pw'), b = document.getElementById('eye');
+  var show = i.type === 'password';
+  i.type = show ? 'text' : 'password';
+  b.classList.toggle('on', show);
+  b.setAttribute('aria-label', show ? 'Hide the password' : 'Show the password');
+  i.focus();
+}
 function doLogin(){
   var who = document.getElementById('who').value.trim();
   var pw  = document.getElementById('pw').value;
@@ -527,6 +559,8 @@ function signOut(why){
   S.token=null; S.students=[]; S.open={}; S.recent=[]; S.done=0; HISTORY=[];
   try { sessionStorage.removeItem('gt_token'); sessionStorage.removeItem('gt_who'); } catch(e){}
   document.getElementById('hdrSub').textContent='';
+  document.getElementById('pw').type='password';
+  document.getElementById('eye').classList.remove('on');
   go('login', true);
   if (why) say('mLogin', why);
 }
