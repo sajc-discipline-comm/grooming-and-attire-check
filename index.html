@@ -88,6 +88,9 @@ body{
 .pane.on{opacity:1;transform:none;pointer-events:auto}
 .pane.out{opacity:0;transform:translateY(-16px)}
 .pane.flow{justify-content:flex-start;padding-top:10px}
+/* A pane is a flex column, so on a screen taller than the phone its children
+   would shrink into one another rather than scroll. Nothing may be squeezed. */
+.pane>*{flex:0 0 auto}
 .pane.on>*{animation:rise .5s var(--ease) backwards}
 .pane.on>*:nth-child(1){animation-delay:.03s}
 .pane.on>*:nth-child(2){animation-delay:.08s}
@@ -425,11 +428,32 @@ canvas{display:none}
   <div id="mRcOne" style="margin-top:18px"></div>
   <p class="eyebrow" style="margin-top:20px">Tap each one they have fixed</p>
   <div id="rCats"></div>
+  <div id="rNewWrap" style="margin-top:26px">
+    <p class="eyebrow">Any new offences?</p>
+    <div id="rNew"></div>
+  </div>
   <div class="stack">
     <button class="btn good wide" id="btnRc" onclick="submitRecheck()">Save</button>
     <button class="btn bad wide" onclick="submitNoShow()">Didn't show up</button>
+    <button class="btn plain" onclick="openEdit()">Something here is wrong — fix it</button>
     <button class="btn plain" onclick="openRecheck()">Back to the list</button>
   </div>
+</section>
+
+<!-- 10 · FIX A MISTAKE -->
+<section class="pane flow" id="pEdit">
+  <p class="eyebrow">Fixing a mistake</p>
+  <p class="big-name" id="eName" style="font-size:29px"></p>
+  <p class="sub" id="eCls"></p>
+  <div id="mEdit" style="margin-top:18px"></div>
+  <p class="eyebrow" style="margin-top:20px">Tap whatever should not be there</p>
+  <div id="eWrong"></div>
+  <div id="eRightWrap" style="margin-top:26px">
+    <p class="eyebrow">And what should it have been?</p>
+    <div id="eRight"></div>
+  </div>
+  <button class="btn good wide" id="btnEdit" onclick="submitEdit()" style="margin-top:16px">Save the correction</button>
+  <button class="btn plain" onclick="backFromEdit()">Cancel</button>
 </section>
 
 </div>
@@ -444,14 +468,15 @@ var S = {
   token:null, who:'', students:[], open:{}, cats:[],
   cfg:{minScore:.72,minMargin:.15,graceDays:3},
   student:null, selected:[], lastEntry:null, recent:[], done:0,
-  rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], loadedAt:''
+  rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[],
+  edRemove:[], edAdd:[], loadedAt:''
 };
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               scan:'pScan', confirm:'pConfirm', offences:'pOffences', done:'pDone',
-              recheck:'pRecheck', rcone:'pRcOne' };
+              recheck:'pRecheck', rcone:'pRcOne', edit:'pEdit' };
 var PROGRESS = { login:0, loading:.08, home:0, find:.25, scan:.25, confirm:.5,
-                 offences:.75, done:1, recheck:.35, rcone:.7 };
+                 offences:.75, done:1, recheck:.35, rcone:.7, edit:.7 };
 var HISTORY = [];
 var current = 'login';
 
@@ -951,6 +976,7 @@ function openRecheckOne(student, codes){
   S.rcStudent={id:student.id,name:student.name,cls:student.cls,gender:student.gender||'',
                key:student.key||openKeyFor(student),codes:codes};
   S.rcFixed=[];
+  S.rcNew=[];
   document.getElementById('rName').textContent=student.name;
   document.getElementById('rCls').textContent=student.cls;
   say('mRcOne','');
@@ -964,7 +990,41 @@ function openRecheckOne(student, codes){
     b.onclick=function(){ toggleFixed(b, code); };
     box.appendChild(b);
   });
+  drawNewOffences(S.rcStudent, codes);
   go('rcone');
+}
+
+/**
+ * The categories this student does NOT already have open, worded for their
+ * gender. Anything already open is left out on purpose: it is on the list
+ * above, and offering it twice on one screen would be two answers to the
+ * same question.
+ */
+function offerableFor(gender, exclude){
+  return S.cats.filter(function(c){
+    return labelForStudent(c, gender) && exclude.indexOf(c.code) === -1;
+  });
+}
+
+function drawNewOffences(student, openCodes){
+  var box=document.getElementById('rNew');
+  var wrap=document.getElementById('rNewWrap');
+  box.innerHTML='';
+  var offer=offerableFor(student.gender, openCodes);
+  if (!offer.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  offer.forEach(function(c,i){
+    var b=document.createElement('button'); b.className='choice';
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(i+1);
+    b.querySelector('b').textContent=labelForStudent(c, student.gender);
+    b.onclick=function(){
+      var k=S.rcNew.indexOf(c.code);
+      if (k===-1){ S.rcNew.push(c.code); b.classList.add('sel'); }
+      else { S.rcNew.splice(k,1); b.classList.remove('sel'); }
+    };
+    box.appendChild(b);
+  });
 }
 function toggleFixed(b, code){
   var i=S.rcFixed.indexOf(code);
@@ -974,21 +1034,105 @@ function toggleFixed(b, code){
 function submitRecheck(){
   var r=S.rcStudent;
   var stillOpen=r.codes.filter(function(c){ return S.rcFixed.indexOf(c)===-1; });
+  var added=S.rcNew.slice();
+  if (!S.rcFixed.length && !added.length){
+    say('mRcOne','Tap what they have fixed, or add a new offence. Nothing has been marked yet.');
+    return;
+  }
   var b=document.getElementById('btnRc');
   b.disabled=true; b.textContent='Saving…';
-  post('recheck',{studentId:r.id,name:r.name,cls:r.cls,resolved:S.rcFixed,stillOpen:stillOpen,noShow:false})
+  post('recheck',{studentId:r.id,name:r.name,cls:r.cls,gender:r.gender,
+                  resolved:S.rcFixed,stillOpen:stillOpen,newCodes:added,noShow:false,by:S.who})
     .then(function(j){
       b.disabled=false; b.innerHTML='Save';
       if (!j.ok){ say('mRcOne', j.error); return; }
-      if (stillOpen.length) S.open[r.key]=stillOpen; else delete S.open[r.key];
+      var nowOpen=stillOpen.concat(j.addedCodes||added);
+      if (nowOpen.length) S.open[r.key]=nowOpen; else delete S.open[r.key];
       openRecheck();
-      say('mRc', r.name+' — '+j.closed+' cleared'+(stillOpen.length?', '+stillOpen.length+' still open':', all clear'),'ok');
+      var msg = r.name+' — '+j.closed+' cleared'+(stillOpen.length?', '+stillOpen.length+' still open':'');
+      if (j.added) msg += ', '+j.added+' new';
+      if (!stillOpen.length && !j.added) msg += ', all clear';
+      say('mRc', msg, 'ok');
     })
     .catch(function(e){ b.disabled=false; b.innerHTML='Save'; say('mRcOne', e.message); });
 }
+
+/* ── fixing a mistake ───────────────────────────────────────────────────
+   Different from a recheck, and deliberately a separate screen. A recheck
+   says the student fixed it; this says we wrote down the wrong thing. The
+   first closes a row and keeps it; this removes it, because a category the
+   student never had should not sit in their history at all.
+   ─────────────────────────────────────────────────────────────────────── */
+function openEdit(){
+  var r=S.rcStudent;
+  S.edRemove=[]; S.edAdd=[];
+  document.getElementById('eName').textContent=r.name;
+  document.getElementById('eCls').textContent=r.cls;
+  say('mEdit','');
+
+  var wrong=document.getElementById('eWrong'); wrong.innerHTML='';
+  r.codes.forEach(function(code,i){
+    var b=document.createElement('button'); b.className='choice';
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(i+1);
+    b.querySelector('b').textContent=labelFor(code);
+    b.onclick=function(){
+      var k=S.edRemove.indexOf(code);
+      if (k===-1){ S.edRemove.push(code); b.classList.add('sel'); }
+      else { S.edRemove.splice(k,1); b.classList.remove('sel'); }
+    };
+    wrong.appendChild(b);
+  });
+
+  var right=document.getElementById('eRight'); right.innerHTML='';
+  var offer=offerableFor(r.gender, r.codes);
+  document.getElementById('eRightWrap').style.display = offer.length ? 'block' : 'none';
+  offer.forEach(function(c,i){
+    var b=document.createElement('button'); b.className='choice';
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(i+1);
+    b.querySelector('b').textContent=labelForStudent(c, r.gender);
+    b.onclick=function(){
+      var k=S.edAdd.indexOf(c.code);
+      if (k===-1){ S.edAdd.push(c.code); b.classList.add('sel'); }
+      else { S.edAdd.splice(k,1); b.classList.remove('sel'); }
+    };
+    right.appendChild(b);
+  });
+  go('edit');
+}
+
+function backFromEdit(){ openRecheckOne(S.rcStudent, S.rcStudent.codes); }
+
+function submitEdit(){
+  var r=S.rcStudent;
+  if (!S.edRemove.length && !S.edAdd.length){
+    say('mEdit','Tap what should not be there, or what it should have been.');
+    return;
+  }
+  var b=document.getElementById('btnEdit');
+  b.disabled=true; b.textContent='Saving…';
+  post('edit',{studentId:r.id,name:r.name,cls:r.cls,gender:r.gender,
+               remove:S.edRemove,add:S.edAdd,by:S.who})
+    .then(function(j){
+      b.disabled=false; b.innerHTML='Save the correction';
+      if (!j.ok){ say('mEdit', j.error); return; }
+      var nowOpen=r.codes.filter(function(c){ return S.edRemove.indexOf(c)===-1; })
+                         .concat(j.addedCodes||S.edAdd);
+      if (nowOpen.length) S.open[r.key]=nowOpen; else delete S.open[r.key];
+      openRecheck();
+      var msg='Corrected — '+r.name;
+      if (j.removed) msg += ', '+j.removed+' removed';
+      if (j.added)   msg += ', '+j.added+' added';
+      say('mRc', msg, 'ok');
+    })
+    .catch(function(e){ b.disabled=false; b.innerHTML='Save the correction'; say('mEdit', e.message); });
+}
 function submitNoShow(){
   var r=S.rcStudent;
-  post('recheck',{studentId:r.id,name:r.name,cls:r.cls,resolved:[],stillOpen:[],noShow:true})
+  /* No student, nothing new to see — anything ticked below is discarded. */
+  S.rcNew=[];
+  post('recheck',{studentId:r.id,name:r.name,cls:r.cls,resolved:[],stillOpen:[],newCodes:[],noShow:true})
     .then(function(j){
       if (!j.ok){ say('mRcOne', j.error); return; }
       openRecheck();
