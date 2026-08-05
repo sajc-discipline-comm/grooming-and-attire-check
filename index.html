@@ -551,7 +551,31 @@ var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               recheck:'pRecheck', rcone:'pRcOne', edit:'pEdit', fail:'pFail' };
 var PROGRESS = { login:0, loading:.08, home:0, find:.25, scan:.25, confirm:.5,
                  offences:.75, done:1, recheck:.35, rcone:.7, edit:.7, fail:.85 };
-var HISTORY = [];
+/* ── what Back means ─────────────────────────────────────────────────────
+   UP one level, not backwards through everything you did.
+
+   The old version kept a stack of every screen visited, so after four
+   students Back walked you through the offence list and the pass/fail of
+   students already saved — screens belonging to finished work, where a
+   stray tap could save something twice.
+
+   A screen has one place above it. Where there is nowhere above — the
+   search, the recheck list, the Saved screen — Back does not appear at all,
+   because Home is in the bar and the Saved screen's ways on are its own
+   buttons.
+
+   rcone is the one screen with two honest parents: the recheck list, or a
+   search. It remembers which, and that is a single field, not a stack.
+   ─────────────────────────────────────────────────────────────────────── */
+var PARENT = {
+  scan:'find', confirm:'find', offences:'confirm',
+  rcone:'recheck', fail:'rcone', edit:'rcone'
+};
+
+function parentOf(name){
+  if (name === 'rcone') return S.rcFrom || 'recheck';
+  return PARENT[name] || null;
+}
 var current = 'login';
 
 /* ── transitions ────────────────────────────────────────────────────── */
@@ -561,14 +585,13 @@ function go(name, isBack){
   var nxt = document.getElementById(PANES[name]);
   cur.classList.remove('on');
   if (!isBack) { cur.classList.add('out'); setTimeout(function(){ cur.classList.remove('out'); }, 430); }
-  if (!isBack && current !== 'loading') HISTORY.push(current);
   current = name;
   paint(name);
   nxt.classList.add('on');
   nxt.scrollTop = 0;
   document.getElementById('bar').style.width = (PROGRESS[name] * 100) + '%';
   var signedIn = name !== 'login' && name !== 'loading';
-  document.getElementById('back').classList.toggle('on', signedIn && name !== 'home');
+  document.getElementById('back').classList.toggle('on', signedIn && !!parentOf(name));
   document.getElementById('btnHome').classList.toggle('on', signedIn && name !== 'home');
 }
 
@@ -581,13 +604,11 @@ function go(name, isBack){
 function goHome(){
   S.student=null; S.selected=[]; S.rcStudent=null;
   S.rcFixed=[]; S.rcNew=[]; S.edRemove=[]; S.edAdd=[];
-  HISTORY=[];
   go('home', true);
 }
 function goBack(){
-  var prev = HISTORY.pop() || 'home';
-  if (prev === 'loading' || prev === 'login') prev = 'home';
-  go(prev, true);
+  var up = parentOf(current);
+  if (up) go(up, true);
 }
 function paint(name){
   if (name !== 'scan') stopCamera();          // never leave the camera running
@@ -801,7 +822,7 @@ function doLogin(){
 }
 
 function signOut(why){
-  S.token=null; S.students=[]; S.open={}; S.recent=[]; S.done=0; HISTORY=[];
+  S.token=null; S.students=[]; S.open={}; S.recent=[]; S.done=0;
   try { sessionStorage.removeItem('gt_token'); sessionStorage.removeItem('gt_who');
         sessionStorage.removeItem(CACHE_KEY); } catch(e){}
   document.getElementById('hdrSub').textContent='';
@@ -853,7 +874,6 @@ function bootstrap(force){
   if (warm){
     applyBoot(warm);
     document.getElementById('hdrSub').textContent = '· ' + S.who;
-    HISTORY = [];
     go('home', true);
     /* Silent: nothing on screen says it is happening, because nothing is
        waiting on it. If it fails, the remembered copy is still usable. */
@@ -872,7 +892,6 @@ function bootstrap(force){
     if (!j.ok) { signOut(j.error); return; }
     applyBoot(j); saveBoot(j);
     document.getElementById('hdrSub').textContent = '· ' + S.who;
-    HISTORY = [];
     say('mHome','');            /* whatever went wrong last time is over */
     go('home', true);
   }).catch(function(e){ go('home', true); say('mHome', e.message); });
@@ -986,7 +1005,7 @@ function hitButton(st, key){
 
 /* ── the loop ───────────────────────────────────────────────────────── */
 function startLoop(){ go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
-function nextStudent(){ S.student=null; S.selected=[]; HISTORY=[]; go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
+function nextStudent(){ S.student=null; S.selected=[]; go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
 function chooseStudent(st){ S.student={id:st[0],name:st[1],cls:st[2],gender:st[3]||''}; showConfirm(); }
 function recordAnyway(typed){
   if (!confirm('Record "'+typed+'" without a Student ID?\n\nUse this only for a student who genuinely is not in the Master Database yet — a transfer whose roster import has not run. It shows amber in the sheet so it can be linked up later.')) return;
@@ -1018,7 +1037,7 @@ function showConfirm(){
 }
 function proceed(){
   var openCodes=S.open[openKeyFor(S.student)]||[];
-  if (openCodes.length){ openRecheckOne(S.student, openCodes); return; }
+  if (openCodes.length){ openRecheckOne(S.student, openCodes, 'find'); return; }
   showOffences();
 }
 function labelFor(code){
@@ -1413,7 +1432,7 @@ function rcButton(r, showClass){
     pillsFor(times, fails, noShows);
   b.querySelector('b').textContent=r.name;
   b.querySelector('.txt span').textContent=(showClass ? r.cls+' · ' : '') + r.codes.map(labelFor).join(', ');
-  b.onclick=function(){ openRecheckOne(r,r.codes); };
+  b.onclick=function(){ openRecheckOne(r,r.codes,'recheck'); };
   return b;
 }
 function copyList(){
@@ -1427,9 +1446,10 @@ function copyList(){
       .catch(function(){ say('mRc','Could not copy automatically on this device.','warn'); });
   } else say('mRc','This browser will not let the app copy for you.','warn');
 }
-function openRecheckOne(student, codes){
+function openRecheckOne(student, codes, from){
   S.rcStudent={id:student.id,name:student.name,cls:student.cls,gender:student.gender||'',
                key:student.key||openKeyFor(student),codes:codes};
+  if (from) S.rcFrom = from;
   S.rcFixed=[];
   S.rcNew=[];
   document.getElementById('rName').textContent=student.name;
@@ -1622,7 +1642,7 @@ function openEdit(){
   go('edit');
 }
 
-function backFromEdit(){ openRecheckOne(S.rcStudent, S.rcStudent.codes); }
+function backFromEdit(){ openRecheckOne(S.rcStudent, S.rcStudent.codes, S.rcFrom); }
 
 function submitEdit(){
   var r=S.rcStudent;
