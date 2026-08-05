@@ -455,6 +455,7 @@ canvas{display:none}
   <div class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
   <h2>Saved</h2>
   <p class="lede" id="dWhat"></p>
+  <div id="mDone"></div>
   <div class="stack">
     <button class="btn wide" onclick="nextStudent()">Next student</button>
     <button class="btn plain wide" id="btnUndo" onclick="undoLast()">That was wrong — undo</button>
@@ -617,23 +618,106 @@ function say(where, text, kind){
 }
 
 /* ── server ─────────────────────────────────────────────────────────── */
-function post(action, body){
-  var payload = Object.assign({ action:action, token:S.token }, body||{});
+/* ── talking to the server ───────────────────────────────────────────────
+   Three different things can go wrong and they are NOT the same thing:
+
+     1. the request never got out            → nothing was saved, say so
+     2. the answer came back unreadable      → it may well have saved anyway
+     3. the session expired                  → sign in again; not a network fault
+
+   The old version caught all three in one place and reported every one of
+   them as "could not reach the server… it needs redeploying", which is a
+   lie in two cases out of three, and the most alarming possible lie in the
+   one where the record was written perfectly well.
+
+   Errors carry `unknown` when the outcome genuinely cannot be told from
+   here. Anything that saves must check rather than guess — see verifySave.
+   ─────────────────────────────────────────────────────────────────────── */
+function failure(message, unknown){
+  var e = new Error(message);
+  e.unknown = !!unknown;
+  return e;
+}
+
+/** One way in and out, so login cannot drift from everything else. */
+function rawPost(payload){
+  if (GAS_URL.indexOf('PASTE_YOUR') === 0){
+    return Promise.reject(failure(
+      'This app has not been connected yet — the deployment URL is still the placeholder in index.html.', false));
+  }
+
   return fetch(GAS_URL, { method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify(payload) })
-    .then(function(r){ return r.json(); })
-    .then(function(j){ if (j && j.needsLogin) { signOut(j.error); throw new Error(j.error); } return j; })
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(payload) })
     .catch(function(){
-      if (GAS_URL.indexOf('PASTE_YOUR') === 0)
-        throw new Error('This app has not been connected yet — the deployment URL is still the placeholder in index.html.');
-      throw new Error(navigator.onLine
-        ? 'Could not reach the server. If the code was just changed, it needs redeploying as a NEW VERSION of the existing deployment.'
-        : 'No internet connection. Nothing has been saved.');
+      /* The request itself failed. Google was never reached, or the answer
+         never came back — from here those look identical, so the outcome is
+         unknown for anything that writes. */
+      throw failure(navigator.onLine
+        ? 'The connection dropped.'
+        : 'No internet connection.', true);
+    })
+    .then(function(r){
+      return r.text().then(function(t){
+        try { return JSON.parse(t); }
+        catch (e){
+          /* Apps Script answered with something that is not JSON — an error
+             page, or a redirect that went astray. doPost may already have
+             run and written to the sheet. */
+          throw failure('The server answered with something unreadable.', true);
+        }
+      });
+    })
+}
+
+function post(action, body){
+  return rawPost(Object.assign({ action:action, token:S.token }, body||{}))
+    .then(function(j){
+      if (j && j.needsLogin) { signOut(j.error); throw failure(j.error, false); }
+      return j;
     });
 }
 
-/* ── login ──────────────────────────────────────────────────────────── */
+/**
+ * A short summary of everything a save could have changed for one student:
+ * what they have open, and how their counts stand. If this differs after a
+ * fresh read, the save landed.
+ */
+function stateSig(key){
+  var codes = (S.open[key] || []).slice().sort();
+  var h = S.history[key] || {};
+  return codes.join(',') + '|' + codes.map(function(c){
+    var x = h[c] || {};
+    return (x.times||0) + ':' + (x.fails||0) + ':' + (x.noShows||0);
+  }).join(',');
+}
+
+/**
+ * After a save whose outcome is unknown, go and look.
+ *
+ * The sheet is the truth and it is one cheap call away. Telling somebody
+ * "nothing was saved" when it plainly was is worse than saying nothing:
+ * they do it again, and now there are two records — or they stop trusting
+ * the app, which is worse still.
+ */
+function verifySave(err, where, key, sigBefore, okMsg, onLanded){
+  if (!err.unknown){ say(where, err.message); return; }
+
+  say(where, 'Checking whether that saved…', 'warn');
+  post('bootstrap', {}).then(function(j){
+    if (!j.ok){ say(where, err.message + ' Could not check either — try again.'); return; }
+    applyBoot(j); saveBoot(j);
+    if (stateSig(key) !== sigBefore){
+      say(where,'');
+      if (onLanded) onLanded();
+    } else {
+      say(where, err.message + ' Nothing was saved — try again.');
+    }
+  }).catch(function(){
+    say(where, err.message + ' Could not check either. Refresh in a moment and see.');
+  });
+}
+
 function togglePw(){
   var i = document.getElementById('pw'), b = document.getElementById('eye');
   var show = i.type === 'password';
@@ -649,9 +733,7 @@ function doLogin(){
   if (!pw)  { say('mLogin','Enter the password.'); return; }
   var b = document.getElementById('btnLogin');
   b.disabled = true; b.textContent = 'Signing in…'; say('mLogin','');
-  fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({ action:'login', password:pw }) })
-    .then(function(r){ return r.json(); })
+  rawPost({ action:'login', password:pw })
     .then(function(j){
       b.disabled = false; b.textContent = 'Sign in';
       if (!j.ok) { say('mLogin', j.error || 'Could not sign in.'); return; }
@@ -660,13 +742,13 @@ function doLogin(){
       document.getElementById('pw').value = '';
       bootstrap(false);
     })
-    .catch(function(){
+    .catch(function(e){
       b.disabled = false; b.textContent = 'Sign in';
-      say('mLogin', GAS_URL.indexOf('PASTE_YOUR') === 0
-        ? 'This app has not been connected yet — the deployment URL is still the placeholder in index.html.'
-        : 'Could not reach the server. Check your connection.');
+      /* Signing in writes nothing, so an unknown outcome is simply a retry. */
+      say('mLogin', e.message + ' Try again.');
     });
 }
+
 function signOut(why){
   S.token=null; S.students=[]; S.open={}; S.recent=[]; S.done=0; HISTORY=[];
   try { sessionStorage.removeItem('gt_token'); sessionStorage.removeItem('gt_who');
@@ -925,13 +1007,14 @@ function toggleCat(b, code){
 function submitCheck(){
   if (!S.selected.length){ say('mOff','Tap at least one category, or cancel.'); return; }
   var s=S.student, b=document.getElementById('btnSubmit');
+  var key=openKeyFor(s), sigBefore=stateSig(key);
   b.disabled=true; b.textContent='Saving…';
   post('submit',{ studentId:s.id, name:s.name, cls:s.cls, gender:s.gender,
     codes:S.selected, remarks:document.getElementById('remarks').value.trim(), by:S.who })
     .then(function(j){
       b.disabled=false; b.innerHTML='Save';
       if (!j.ok){ say('mOff', j.error); return; }
-      var key=openKeyFor(s), codes=j.openCodes||S.selected;
+      var codes=j.openCodes||S.selected;
       S.open[key]=(S.open[key]||[]).concat(codes);
       S.lastEntry={entryId:j.entryId,key:key,codes:codes};
       S.recent.unshift({entryId:j.entryId,key:key,name:s.name,cls:s.cls,codes:codes,
@@ -940,9 +1023,27 @@ function submitCheck(){
       document.getElementById('dWhat').textContent = s.name + ' — ' + codes.map(labelFor).join(', ') +
         (j.skipped && j.skipped.length ? ' · already open: ' + j.skipped.join(', ') : '');
       document.getElementById('btnUndo').style.display='block';
+      say('mDone','');
       go('done');
     })
-    .catch(function(e){ b.disabled=false; b.innerHTML='Save'; say('mOff', e.message); });
+    .catch(function(e){
+      b.disabled=false; b.innerHTML='Save';
+      verifySave(e, 'mOff', key, sigBefore, null, function(){
+        /* It is in the record, but the app never received the entry ID, so
+           there is nothing for Undo to target. Say so rather than showing a
+           button that would fail. */
+        S.done++;
+        S.lastEntry=null;
+        document.getElementById('dWhat').textContent =
+          s.name + ' — ' + S.selected.map(labelFor).join(', ');
+        document.getElementById('btnUndo').style.display='none';
+        go('done');
+        say('mOff','');
+        say('mDone','Saved after all — the connection dropped before the app could say so. ' +
+            'Undo is not available for this one; take it back from Entered this session ' +
+            'on the front screen instead.','warn');
+      });
+    });
 }
 function undoLast(){
   if (!S.lastEntry) return;
@@ -1379,6 +1480,7 @@ function submitFail(){
 /** One place that talks to the server, so Pass and Fail cannot drift apart. */
 function saveRecheck(resolved, stillOpen, btn, btnLabel){
   var r=S.rcStudent, added=S.rcNew.slice();
+  var sigBefore=stateSig(r.key);
   btn.disabled=true; btn.textContent='Saving…';
   post('recheck',{studentId:r.id,name:r.name,cls:r.cls,gender:r.gender,
                   resolved:resolved,stillOpen:stillOpen,newCodes:added,noShow:false,by:S.who})
@@ -1397,7 +1499,12 @@ function saveRecheck(resolved, stillOpen, btn, btnLabel){
     })
     .catch(function(e){
       btn.disabled=false; btn.innerHTML=btnLabel;
-      say(current==='fail'?'mFail':'mRcOne', e.message);
+      verifySave(e, current==='fail'?'mFail':'mRcOne', r.key, sigBefore,
+                 null, function(){
+        openRecheck();
+        say('mRc', r.name + ' saved after all — the connection dropped before ' +
+            'the app could say so.', 'ok');
+      });
     });
 }
 
@@ -1454,7 +1561,7 @@ function submitEdit(){
     say('mEdit','Tap what should not be there, or what it should have been.');
     return;
   }
-  var b=document.getElementById('btnEdit');
+  var b=document.getElementById('btnEdit'), sigBefore=stateSig(r.key);
   b.disabled=true; b.textContent='Saving…';
   post('edit',{studentId:r.id,name:r.name,cls:r.cls,gender:r.gender,
                remove:S.edRemove,add:S.edAdd,by:S.who})
@@ -1470,10 +1577,16 @@ function submitEdit(){
       if (j.added)   msg += ', '+j.added+' added';
       say('mRc', msg, 'ok');
     })
-    .catch(function(e){ b.disabled=false; b.innerHTML='Save the correction'; say('mEdit', e.message); });
+    .catch(function(e){
+      b.disabled=false; b.innerHTML='Save the correction';
+      verifySave(e, 'mEdit', r.key, sigBefore, null, function(){
+        openRecheck();
+        say('mRc', 'Corrected after all — ' + r.name + '.', 'ok');
+      });
+    });
 }
 function submitNoShow(){
-  var r=S.rcStudent;
+  var r=S.rcStudent, sigBefore=stateSig(r.key);
   /* No student, nothing new to see — anything ticked below is discarded. */
   S.rcNew=[];
   post('recheck',{studentId:r.id,name:r.name,cls:r.cls,resolved:[],stillOpen:[],newCodes:[],noShow:true})
@@ -1482,7 +1595,12 @@ function submitNoShow(){
       if (j.history) S.history[r.key]=j.history;
       openRecheck();
       say('mRc', r.name+' marked as not turning up. They go to the top of the list.','warn');
-    }).catch(function(e){ say('mRcOne', e.message); });
+    }).catch(function(e){
+      verifySave(e, 'mRcOne', r.key, sigBefore, null, function(){
+        openRecheck();
+        say('mRc', r.name + ' was marked as not turning up after all.', 'ok');
+      });
+    });
 }
 
 /* ── keyboard ───────────────────────────────────────────────────────────
