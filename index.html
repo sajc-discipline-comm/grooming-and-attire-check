@@ -220,8 +220,9 @@ a.btn.plain{text-decoration:none;margin-top:4px}
 .choice .flag.t3{background:#FFD27A;color:#000}
 .choice .flag.t4{background:#FFA862;color:#000}
 .choice .flag.t5{background:#FF8080;color:#000}
-/* A row that states a fact rather than offering a choice. */
-.choice.flat{cursor:default;background:transparent;border-style:dashed}
+/* A row that states a fact rather than offering a choice. Tighter than a
+   tappable row, because it has no target to be big enough for. */
+.choice.flat{cursor:default;background:transparent;border-style:dashed;padding:11px 15px}
 .choice.flat:hover{border-color:var(--line);transform:none}
 /* the tier edge stays solid — a dashed severity bar reads as a rendering fault */
 .choice.flat.tier2,.choice.flat.tier3,.choice.flat.tier4,.choice.flat.tier5{border-left-style:solid}
@@ -247,6 +248,25 @@ a.btn.plain{text-decoration:none;margin-top:4px}
   border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 22px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .hint{font-size:12.5px;color:var(--muted);margin-top:18px;text-align:center}
+
+/* Search and refresh share one row: the input is an underline like every
+   other field, the refresh is an icon beside it rather than its own line. */
+.findrow{display:flex;align-items:flex-end;gap:12px;margin:2px 0 16px}
+.findrow input{
+  flex:1;min-width:0;border:0;border-bottom:2px solid var(--line);background:transparent;
+  font:inherit;font-size:17px;color:var(--ink);padding:5px 2px 8px;
+  transition:border-color .28s var(--ease);
+}
+.findrow input::placeholder{color:#b9b3a8}
+.findrow input:focus{outline:none;border-bottom-color:var(--accent)}
+.iconbtn{
+  flex:0 0 auto;width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);
+  background:transparent;color:var(--accent);font-size:18px;line-height:1;cursor:pointer;
+  transition:background .2s,border-color .2s,transform .16s var(--ease);
+}
+.iconbtn:hover{background:var(--accent-tint);border-color:transparent}
+.iconbtn:active{transform:scale(.94)}
+.iconbtn:disabled{opacity:.5;cursor:default}
 .seg{display:flex;border:1.5px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:16px}
 .seg button{flex:1;padding:11px 6px;font:inherit;font-size:14px;font-weight:600;border:0;
   background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
@@ -446,10 +466,13 @@ canvas{display:none}
 <section class="pane flow" id="pRecheck">
   <p class="eyebrow" id="rcCount"></p>
   <h2>Recheck list</h2>
-  <p class="lede">Tap a student when they come forward.</p>
   <div id="mRc"></div>
-  <button class="btn plain" id="btnRcRefresh" onclick="refreshRecheck()"
-          style="margin:-4px 0 8px">↻ Refresh the list</button>
+  <div class="findrow">
+    <input id="rcQ" placeholder="Find a name or class" autocomplete="off"
+           autocapitalize="characters" spellcheck="false" oninput="paintRecheck()">
+    <button class="iconbtn" id="btnRcRefresh" onclick="refreshRecheck()"
+            aria-label="Refresh the list">↻</button>
+  </div>
   <div class="seg">
     <button id="segClass" class="on" onclick="setRcMode('class')">By class</button>
     <button id="segPri" onclick="setRcMode('pri')">By priority</button>
@@ -464,12 +487,8 @@ canvas{display:none}
   <p class="big-name" id="rName" style="font-size:29px"></p>
   <p class="sub" id="rCls"></p>
   <div id="mRcOne" style="margin-top:18px"></div>
-  <p class="eyebrow" style="margin-top:20px">Outstanding</p>
+  <p class="eyebrow" style="margin-top:14px">Outstanding</p>
   <div id="rCats"></div>
-  <div id="rNewWrap" style="margin-top:26px">
-    <p class="eyebrow">Any new offences?</p>
-    <div id="rNew"></div>
-  </div>
   <div class="stack">
     <button class="btn good wide" id="btnPass" onclick="rcPass()">Pass — all fixed</button>
     <button class="btn bad wide" id="btnFail" onclick="rcFail()">Fail — not fixed</button>
@@ -482,11 +501,15 @@ canvas{display:none}
 <!-- 9b · WHICH ONES FAILED -->
 <section class="pane flow" id="pFail">
   <p class="eyebrow" id="fWho"></p>
-  <h2>Which are still not fixed?</h2>
-  <p class="lede">All of them are ticked. Untap anything they have fixed.</p>
+  <h2>What is still wrong?</h2>
   <div id="mFail"></div>
+  <p class="eyebrow" id="fStillHead">Still not fixed — untap anything they have sorted</p>
   <div id="fCats"></div>
-  <button class="btn good wide" id="btnFailSave" onclick="submitFail()" style="margin-top:12px">Save</button>
+  <div id="rNewWrap" style="margin-top:26px">
+    <p class="eyebrow">Any new offences?</p>
+    <div id="rNew"></div>
+  </div>
+  <button class="btn good wide" id="btnFailSave" onclick="submitFail()" style="margin-top:16px">Save</button>
   <button class="btn plain" onclick="go('rcone')">Cancel</button>
 </section>
 
@@ -1081,12 +1104,17 @@ function ordinal(n){
   return n + (s[(v-20)%10] || s[v] || s[0]);
 }
 
-/** "failed 2× · didn't show 1×" — only the parts that are true. */
-function countLine(c){
-  var bits=[];
-  if (c.fails)   bits.push('failed ' + c.fails + '×');
-  if (c.noShows) bits.push("didn't show " + c.noShows + '×');
-  return bits.join(' · ');
+/**
+ * The pills on ONE offence, on the student's own screen. The counts live
+ * here and nowhere else on the row — repeating "failed 2×" underneath as
+ * well was a whole wrapped line saying what the pill already said.
+ */
+function pillsForOffence(h){
+  var out='';
+  if (h.times>=2)  out += '<span class="flag t'+tierFor(h.times)+'">'+ordinal(h.times)+' time</span>';
+  if (h.fails)     out += '<span class="flag t1">failed '+h.fails+'×</span>';
+  if (h.noShows)   out += '<span class="flag t1">no-show '+h.noShows+'×</span>';
+  return out ? '<span class="flags">'+out+'</span>' : '';
 }
 
 /**
@@ -1123,9 +1151,9 @@ function pillsFor(times, fails){
 
 function refreshRecheck(){
   var b=document.getElementById('btnRcRefresh');
-  b.disabled=true; b.textContent='Refreshing…';
+  b.disabled=true; b.textContent='⋯';
   post('bootstrap',{}).then(function(j){
-    b.disabled=false; b.innerHTML='↻ Refresh the list';
+    b.disabled=false; b.innerHTML='↻';
     if (!j.ok){ say('mRc', j.error); return; }
     S.students=j.students||S.students; S.open=j.open||{}; S.history=j.history||{};
     S.cats=j.categories||S.cats; S.loadedAt=j.serverTime||S.loadedAt;
@@ -1136,11 +1164,13 @@ function refreshRecheck(){
     say('mRc', after===before ? 'Up to date.'
         : 'Updated — ' + after + (after===1?' student outstanding.':' students outstanding.'), 'ok');
   }).catch(function(e){
-    b.disabled=false; b.innerHTML='↻ Refresh the list'; say('mRc', e.message);
+    b.disabled=false; b.innerHTML='↻'; say('mRc', e.message);
   });
 }
 
 function openRecheck(){
+  var q=document.getElementById('rcQ');
+  if (q && current!=='recheck') q.value='';
   var byId={}; S.students.forEach(function(st){ byId[st[0]]=st; });
   S.rcList=Object.keys(S.open).map(function(key){
     var st=byId[key], codes=S.open[key];
@@ -1158,10 +1188,31 @@ function setRcMode(m){
   document.getElementById(m==='pri'?'segPri':'segClass').classList.add('on');
   paintRecheck();
 }
+/** Name or class, anywhere in it — you are scanning a list you can see. */
+function rcMatches(r, q){
+  if (!q) return true;
+  return String(r.name).toUpperCase().indexOf(q) !== -1 ||
+         String(r.cls).toUpperCase().indexOf(q) !== -1;
+}
+
 function paintRecheck(){
   var box=document.getElementById('rcList'); box.innerHTML='';
   if (!S.rcList.length){ box.innerHTML='<p class="lede">Nothing outstanding. Everybody is clear.</p>'; return; }
-  var list=S.rcList.slice();
+
+  var q=(document.getElementById('rcQ').value||'').trim().toUpperCase();
+  var list=S.rcList.filter(function(r){ return rcMatches(r,q); });
+
+  if (!list.length){
+    box.innerHTML='<p class="lede">Nobody outstanding matches that.</p>';
+    return;
+  }
+  /* While filtering, the class group headings are noise — every row already
+     says the class, and there are only a handful of rows left. */
+  if (q){
+    list.sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
+    list.forEach(function(r){ box.appendChild(rcButton(r,true)); });
+    return;
+  }
   if (S.rcMode==='pri'){
     /* Most-failed first. Somebody who has been back three times and still
        has not sorted it is the one to chase, ahead of somebody with two
@@ -1225,14 +1276,13 @@ function openRecheckOne(student, codes){
     var d=document.createElement('div');
     d.className='choice flat' + (tier ? ' tier'+tier : '');
     d.innerHTML='<span class="key"></span><span class="txt"><b></b></span>' +
-      pillsFor(h.times, h.fails);
+      pillsForOffence(h);
     d.querySelector('.key').textContent=String(i+1);
     d.querySelector('b').textContent=labelFor(code);
     var txt=d.querySelector('.txt');
-    var line=countLine(h);
-    if (line){
+    if (h.trail){
       var p=document.createElement('p'); p.className='trail';
-      p.textContent=line + (h.trail ? ' — ' + shortTrail(h.trail) : '');
+      p.textContent=shortTrail(h.trail);
       txt.appendChild(p);
     }
     var pl=pastLine(h);
@@ -1242,7 +1292,6 @@ function openRecheckOne(student, codes){
     }
     box.appendChild(d);
   });
-  drawNewOffences(S.rcStudent, codes);
   go('rcone');
 }
 
@@ -1287,18 +1336,18 @@ function drawNewOffences(student, openCodes){
    ─────────────────────────────────────────────────────────────────────── */
 function rcPass(){
   var r=S.rcStudent;
+  S.rcNew=[];                      /* a pass is one tap, and stays one tap */
   saveRecheck(r.codes.slice(), [], document.getElementById('btnPass'), 'Pass — all fixed');
 }
 
 function rcFail(){
   var r=S.rcStudent;
-  /* One outstanding offence and they failed — there is nothing to choose. */
-  if (r.codes.length === 1){
-    saveRecheck([], r.codes.slice(), document.getElementById('btnFail'), 'Fail — not fixed');
-    return;
-  }
   S.failStill = r.codes.slice();          // everything still wrong, until untapped
+  S.rcNew = [];
   document.getElementById('fWho').textContent = r.name + ' · ' + r.cls;
+  document.getElementById('fStillHead').textContent = r.codes.length > 1
+    ? 'Still not fixed — untap anything they have sorted'
+    : 'Still not fixed';
   say('mFail','');
   var box=document.getElementById('fCats'); box.innerHTML='';
   r.codes.forEach(function(code,i){
@@ -1313,12 +1362,13 @@ function rcFail(){
     };
     box.appendChild(b);
   });
+  drawNewOffences(r, r.codes);
   go('fail');
 }
 
 function submitFail(){
   var r=S.rcStudent, still=S.failStill.slice();
-  if (!still.length){
+  if (!still.length && !S.rcNew.length){
     say('mFail','Nothing is ticked, so they have fixed everything. Go back and tap Pass instead.','warn');
     return;
   }
