@@ -663,15 +663,38 @@ function rawPost(payload){
         catch (e){
           /* Apps Script answered with something that is not JSON — an error
              page, or a redirect that went astray. doPost may already have
-             run and written to the sheet. */
-          throw failure('The server answered with something unreadable.', true);
+             run and written to the sheet.
+
+             Say WHAT came back. "Something unreadable" cannot be diagnosed
+             from the front of assembly; "Sorry, unable to open the file at
+             this time" can be, immediately. */
+          throw failure('The server answered with something unreadable' + gist(t) + '.', true);
         }
       });
     })
 }
 
+/** The first readable words of a non-JSON answer, for the error message. */
+function gist(t){
+  var plain = String(t || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!plain) return ' (an empty answer)';
+  return ' — it began: "' + plain.slice(0, 90) + (plain.length > 90 ? '…' : '') + '"';
+}
+
+/* Reading is safe to do twice; writing is not. A load that comes back
+   mangled is very often fine on a second ask a moment later, and nobody
+   should have to see an error for something the app could simply redo. */
+var READ_ONLY = { bootstrap:1, refresh:1 };
+
 function post(action, body){
-  return rawPost(Object.assign({ action:action, token:S.token }, body||{}))
+  var payload = Object.assign({ action:action, token:S.token }, body||{});
+
+  return rawPost(payload)
+    .catch(function(e){
+      if (!READ_ONLY[action] || !e.unknown) throw e;
+      return new Promise(function(done){ setTimeout(done, 700); })
+        .then(function(){ return rawPost(payload); });
+    })
     .then(function(j){
       if (j && j.needsLogin) { signOut(j.error); throw failure(j.error, false); }
       return j;
@@ -809,6 +832,7 @@ function bootstrap(force){
     post('bootstrap', {}).then(function(j){
       if (!j.ok) return;
       applyBoot(j); saveBoot(j);
+      say('mHome','');
       if (current === 'home') paintHome();
     }).catch(function(){});
     return;
@@ -821,6 +845,7 @@ function bootstrap(force){
     applyBoot(j); saveBoot(j);
     document.getElementById('hdrSub').textContent = '· ' + S.who;
     HISTORY = [];
+    say('mHome','');            /* whatever went wrong last time is over */
     go('home', true);
   }).catch(function(e){ go('home', true); say('mHome', e.message); });
 }
@@ -1190,6 +1215,9 @@ function worstTimes(key, codes){
 function worstFail(key, codes){
   var n=0; codes.forEach(function(c){ var f=histFor(key,c).fails; if (f>n) n=f; }); return n;
 }
+function worstNoShow(key, codes){
+  var n=0; codes.forEach(function(c){ var x=histFor(key,c).noShows; if (x>n) n=x; }); return n;
+}
 
 /**
  * Tier by depth, per the severity rule: 5 or more is the top of the scale,
@@ -1211,11 +1239,7 @@ function ordinal(n){
  * well was a whole wrapped line saying what the pill already said.
  */
 function pillsForOffence(h){
-  var out='';
-  if (h.times>=2)  out += '<span class="flag t'+tierFor(h.times)+'">'+ordinal(h.times)+' time</span>';
-  if (h.fails)     out += '<span class="flag t1">failed '+h.fails+'×</span>';
-  if (h.noShows)   out += '<span class="flag t1">no-show '+h.noShows+'×</span>';
-  return out ? '<span class="flags">'+out+'</span>' : '';
+  return pillsFor(h.times, h.fails, h.noShows);
 }
 
 /**
@@ -1242,11 +1266,19 @@ function pastLine(h){
   return h.past.length + ' earlier cases · the last cleared ' + last.to;
 }
 
-/** The pills a row carries: how often, and how stubbornly. */
-function pillsFor(times, fails){
+/**
+ * The pills a row carries: how often they have been caught, how stubbornly,
+ * and how often they simply did not turn up.
+ *
+ * Only the first wears the severity scale. Failed rechecks are quiet grey —
+ * a fact, not a tier. A no-show wears the plain follow-up red, because it is
+ * the one that stops you doing anything at all about them.
+ */
+function pillsFor(times, fails, noShows){
   var out='';
   if (times>=2) out += '<span class="flag t'+tierFor(times)+'">'+ordinal(times)+' time</span>';
   if (fails)    out += '<span class="flag t1">failed '+fails+'×</span>';
+  if (noShows)  out += '<span class="flag">no-show '+noShows+'×</span>';
   return out ? '<span class="flags">'+out+'</span>' : '';
 }
 
@@ -1318,8 +1350,12 @@ function paintRecheck(){
     /* Most-failed first. Somebody who has been back three times and still
        has not sorted it is the one to chase, ahead of somebody with two
        fresh offences and no history. */
+    /* Most-caught first, then the ones who do not turn up, then the ones
+       who turn up and still have not sorted it. A student you cannot get in
+       front of is the hardest to do anything about. */
     list.sort(function(a,b){
       return worstTimes(b.key,b.codes)-worstTimes(a.key,a.codes)
+          || worstNoShow(b.key,b.codes)-worstNoShow(a.key,a.codes)
           || worstFail(b.key,b.codes)-worstFail(a.key,a.codes)
           || b.codes.length-a.codes.length
           || String(a.name).localeCompare(String(b.name));
@@ -1340,11 +1376,12 @@ function paintRecheck(){
 }
 function rcButton(r, showClass){
   var times=worstTimes(r.key, r.codes), fails=worstFail(r.key, r.codes);
+  var noShows=worstNoShow(r.key, r.codes);
   var tier=tierFor(times);
   var b=document.createElement('button');
   b.className='choice' + (tier ? ' tier'+tier : '');
   b.innerHTML='<span class="key">·</span><span class="txt"><b></b><span></span></span>' +
-    pillsFor(times, fails);
+    pillsFor(times, fails, noShows);
   b.querySelector('b').textContent=r.name;
   b.querySelector('.txt span').textContent=(showClass ? r.cls+' · ' : '') + r.codes.map(labelFor).join(', ');
   b.onclick=function(){ openRecheckOne(r,r.codes); };
