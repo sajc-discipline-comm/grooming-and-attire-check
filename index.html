@@ -723,22 +723,50 @@ function stateSig(key){
  * they do it again, and now there are two records — or they stop trusting
  * the app, which is worse still.
  */
-function verifySave(err, where, key, sigBefore, okMsg, onLanded){
+function verifySave(err, where, who, sigBefore, onLanded){
   if (!err.unknown){ say(where, err.message); return; }
 
   say(where, 'Checking whether that saved…', 'warn');
-  post('bootstrap', {}).then(function(j){
-    if (!j.ok){ say(where, err.message + ' Could not check either — try again.'); return; }
-    applyBoot(j); saveBoot(j);
-    if (stateSig(key) !== sigBefore){
-      say(where,'');
-      if (onLanded) onLanded();
-    } else {
-      say(where, err.message + ' Nothing was saved — try again.');
-    }
-  }).catch(function(){
-    say(where, err.message + ' Could not check either. Refresh in a moment and see.');
-  });
+
+  /* peek, not bootstrap. Asking about one student is one narrow read of the
+     Log; bootstrap re-reads the whole Master Database across every intake
+     tab when the cache is cold, so checking a save was costing more than
+     the save it was checking. */
+  post('peek', { studentId: who.id, name: who.name, cls: who.cls })
+    .then(function(j){
+      if (!j.ok){ say(where, err.message + ' Could not check either — try again.'); return; }
+      if (j.open && j.open.length) S.open[who.key] = j.open; else delete S.open[who.key];
+      S.history[who.key] = j.history || {};
+
+      if (stateSig(who.key) !== sigBefore){
+        say(where,'');
+        if (onLanded) onLanded();
+      } else {
+        say(where, err.message + ' Nothing was saved — try again.');
+      }
+    })
+    .catch(function(){
+      say(where, err.message + ' Could not check either. Refresh in a moment and see.');
+    });
+}
+
+/**
+ * A save that takes more than a few seconds needs to say so. Silence for
+ * half a minute is what makes somebody press the button again.
+ */
+function slowNote(where, on){
+  clearTimeout(slowNote._t);
+  if (!on){
+    /* Clear it only if it is still ours — this runs before anything else is
+       said, so nothing real is being wiped. */
+    if (slowNote._shown === where) say(where, '');
+    slowNote._shown = null;
+    return;
+  }
+  slowNote._t = setTimeout(function(){
+    slowNote._shown = where;
+    say(where, 'Still saving. The record may already have it — do not press it again.', 'warn');
+  }, 5000);
 }
 
 function togglePw(){
@@ -1034,10 +1062,11 @@ function submitCheck(){
   var s=S.student, b=document.getElementById('btnSubmit');
   var key=openKeyFor(s), sigBefore=stateSig(key);
   b.disabled=true; b.textContent='Saving…';
+  slowNote('mOff', true);
   post('submit',{ studentId:s.id, name:s.name, cls:s.cls, gender:s.gender,
     codes:S.selected, remarks:document.getElementById('remarks').value.trim(), by:S.who })
     .then(function(j){
-      b.disabled=false; b.innerHTML='Save';
+      b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
       if (!j.ok){ say('mOff', j.error); return; }
       var codes=j.openCodes||S.selected;
       S.open[key]=(S.open[key]||[]).concat(codes);
@@ -1052,8 +1081,8 @@ function submitCheck(){
       go('done');
     })
     .catch(function(e){
-      b.disabled=false; b.innerHTML='Save';
-      verifySave(e, 'mOff', key, sigBefore, null, function(){
+      b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
+      verifySave(e, 'mOff', {id:s.id, name:s.name, cls:s.cls, key:key}, sigBefore, function(){
         /* It is in the record, but the app never received the entry ID, so
            there is nothing for Undo to target. Say so rather than showing a
            button that would fail. */
@@ -1517,13 +1546,14 @@ function submitFail(){
 /** One place that talks to the server, so Pass and Fail cannot drift apart. */
 function saveRecheck(resolved, stillOpen, btn, btnLabel){
   var r=S.rcStudent, added=S.rcNew.slice();
-  var sigBefore=stateSig(r.key);
+  var sigBefore=stateSig(r.key), where=(current==='fail'?'mFail':'mRcOne');
   btn.disabled=true; btn.textContent='Saving…';
+  slowNote(where, true);
   post('recheck',{studentId:r.id,name:r.name,cls:r.cls,gender:r.gender,
                   resolved:resolved,stillOpen:stillOpen,newCodes:added,noShow:false,by:S.who})
     .then(function(j){
-      btn.disabled=false; btn.innerHTML=btnLabel;
-      if (!j.ok){ say(current==='fail'?'mFail':'mRcOne', j.error); return; }
+      btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
+      if (!j.ok){ say(where, j.error); return; }
       var nowOpen=stillOpen.concat(j.addedCodes||added);
       if (nowOpen.length) S.open[r.key]=nowOpen; else delete S.open[r.key];
       if (j.history) S.history[r.key]=j.history;
@@ -1532,12 +1562,14 @@ function saveRecheck(resolved, stillOpen, btn, btnLabel){
       msg += stillOpen.length ? stillOpen.length+' still open' : 'all clear';
       if (j.closed) msg += ', '+j.closed+' cleared';
       if (j.added)  msg += ', '+j.added+' new';
+      if (j.repeated && j.repeated.length){
+        msg += '. Already marked today for ' + j.repeated.join(', ') + ', so that was not counted again';
+      }
       say('mRc', msg, stillOpen.length ? 'warn' : 'ok');
     })
     .catch(function(e){
-      btn.disabled=false; btn.innerHTML=btnLabel;
-      verifySave(e, current==='fail'?'mFail':'mRcOne', r.key, sigBefore,
-                 null, function(){
+      btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
+      verifySave(e, where, r, sigBefore, function(){
         openRecheck();
         say('mRc', r.name + ' saved after all — the connection dropped before ' +
             'the app could say so.', 'ok');
@@ -1616,7 +1648,7 @@ function submitEdit(){
     })
     .catch(function(e){
       b.disabled=false; b.innerHTML='Save the correction';
-      verifySave(e, 'mEdit', r.key, sigBefore, null, function(){
+      verifySave(e, 'mEdit', r, sigBefore, function(){
         openRecheck();
         say('mRc', 'Corrected after all — ' + r.name + '.', 'ok');
       });
@@ -1633,7 +1665,7 @@ function submitNoShow(){
       openRecheck();
       say('mRc', r.name+' marked as not turning up. They go to the top of the list.','warn');
     }).catch(function(e){
-      verifySave(e, 'mRcOne', r.key, sigBefore, null, function(){
+      verifySave(e, 'mRcOne', r, sigBefore, function(){
         openRecheck();
         say('mRc', r.name + ' was marked as not turning up after all.', 'ok');
       });
