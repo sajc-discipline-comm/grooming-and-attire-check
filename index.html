@@ -716,8 +716,15 @@ function gist(t){
    should have to see an error for something the app could simply redo. */
 var READ_ONLY = { bootstrap:1, refresh:1 };
 
+/* What the last slow call actually cost, split into the part the server
+   admits to and the part that happened somewhere else. If the server says
+   one second and the phone waited sixty, the time is not in our code and no
+   amount of tuning the script will touch it. */
+var lastTiming = null;
+
 function post(action, body){
   var payload = Object.assign({ action:action, token:S.token }, body||{});
+  var started = Date.now();
 
   return rawPost(payload)
     .catch(function(e){
@@ -727,8 +734,29 @@ function post(action, body){
     })
     .then(function(j){
       if (j && j.needsLogin) { signOut(j.error); throw failure(j.error, false); }
+      var trip = Date.now() - started;
+      if (trip > 3000){
+        lastTiming = { action:action, trip:trip, ms:(j && j.ms) || null };
+        try { console.log('[grooming] ' + describeTiming(lastTiming)); } catch(e){}
+      }
       return j;
     });
+}
+
+/** One sentence saying where a slow call spent its time. */
+function describeTiming(t){
+  var secs = function(n){ return (n/1000).toFixed(1) + 's'; };
+  if (!t.ms){
+    return t.action + ' took ' + secs(t.trip) + ' — the server did not report its own time.';
+  }
+  var elsewhere = Math.max(0, t.trip - t.ms.total);
+  var parts = [];
+  if (t.ms.lock  > 500) parts.push(secs(t.ms.lock) + ' waiting for another save to finish');
+  if (t.ms.read  > 500) parts.push(secs(t.ms.read) + ' reading');
+  if (t.ms.write > 500) parts.push(secs(t.ms.write) + ' writing');
+  return t.action + ' took ' + secs(t.trip) + ': ' + secs(t.ms.total) + ' in the script' +
+         (parts.length ? ' (' + parts.join(', ') + ')' : '') +
+         ', ' + secs(elsewhere) + ' getting there and back.';
 }
 
 /**
@@ -914,7 +942,9 @@ function paintHome(){
     ? openCount + (openCount===1 ? ' needs to be rechecked.' : ' need to be rechecked.')
     : 'Nobody needs a recheck.';
   document.getElementById('btnRecheck').textContent = 'Recheck list · ' + openCount;
-  document.getElementById('loadedAt').textContent = S.loadedAt ? 'Roster loaded at ' + S.loadedAt : '';
+  document.getElementById('loadedAt').textContent =
+    (S.loadedAt ? 'Roster loaded at ' + S.loadedAt : '') +
+    (lastTiming ? '  ·  Last slow call: ' + describeTiming(lastTiming) : '');
 
   var wrap = document.getElementById('recentWrap'), list = document.getElementById('recentList');
   if (!S.recent.length) { wrap.style.display='none'; return; }
