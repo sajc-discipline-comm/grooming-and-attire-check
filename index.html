@@ -271,6 +271,15 @@ a.btn.plain{text-decoration:none;margin-top:4px}
 .seg button{flex:1;padding:11px 6px;font:inherit;font-size:14px;font-weight:600;border:0;
   background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
 .seg button.on{background:var(--accent);color:#fff}
+/* A cohort is a section, not a label — Fraunces and a rule under it, so it
+   reads a level above the class codes rather than competing with them. */
+.cohorthead{
+  font-family:'Fraunces',Georgia,serif;
+  font-variation-settings:'opsz' 30,'SOFT' 30,'WONK' 1;
+  font-weight:600;font-size:20px;letter-spacing:-.015em;color:var(--ink);
+  margin:28px 0 2px;padding-bottom:8px;border-bottom:1.5px solid var(--line);
+}
+.cohorthead:first-child{margin-top:2px}
 .grouphead{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.14em;
   text-transform:uppercase;margin:18px 0 9px}
 .grouphead:first-child{margin-top:0}
@@ -1369,6 +1378,35 @@ function setRcMode(m){
   document.getElementById(m==='pri'?'segPri':'segClass').classList.add('on');
   paintRecheck();
 }
+/* ── which cohort a class belongs to ─────────────────────────────────────
+   A class code carries its INTAKE year in the first two digits: 26S06 is a
+   2026 intake. In academic year 2026 that is JC1; a 2025 intake is JC2. So
+   it corrects itself every January with nothing to maintain.
+
+   Two mistakes have been made here before and neither is repeated: the
+   prefix is the year they ENTERED, not the year they leave, and there is no
+   hardcoded year anywhere — a check like startsWith('25') is right for
+   exactly one academic year and silently wrong forever after.
+
+   The year comes from the server when it is offered, because a phone with
+   the wrong date should not be able to reorder the list. If an older
+   deployment does not send it, the phone's own year is the fallback.
+   ─────────────────────────────────────────────────────────────────────── */
+function academicYear(){
+  return Number(S.cfg && S.cfg.academicYear) || new Date().getFullYear();
+}
+
+function cohortOf(cls){
+  var m = /^(\d{2})/.exec(String(cls || '').trim());
+  if (!m) return 'Unsorted';
+  var diff = academicYear() - (2000 + parseInt(m[1], 10));
+  if (diff === 0) return 'JC1';
+  if (diff === 1) return 'JC2';
+  return 'Unsorted';
+}
+
+var COHORT_ORDER = ['JC1', 'JC2', 'Unsorted'];
+
 /** Name or class, anywhere in it — you are scanning a list you can see. */
 function rcMatches(r, q){
   if (!q) return true;
@@ -1412,14 +1450,27 @@ function paintRecheck(){
     return;
   }
   list.sort(function(a,b){ return String(a.cls).localeCompare(String(b.cls)) || String(a.name).localeCompare(String(b.name)); });
-  var currentCls=null;
-  list.forEach(function(r){
-    if (r.cls!==currentCls){
-      currentCls=r.cls;
-      var h=document.createElement('div'); h.className='grouphead';
-      h.textContent=currentCls||'No class'; box.appendChild(h);
-    }
-    box.appendChild(rcButton(r,false));
+
+  /* Cohort, then class, then student. Only cohorts that actually have
+     somebody outstanding get a heading — an empty JC2 heading would be a
+     line saying nothing. */
+  COHORT_ORDER.forEach(function(cohort){
+    var inCohort = list.filter(function(r){ return cohortOf(r.cls) === cohort; });
+    if (!inCohort.length) return;
+
+    var ch=document.createElement('div'); ch.className='cohorthead';
+    ch.textContent = cohort === 'Unsorted' ? 'Class not recognised' : cohort;
+    box.appendChild(ch);
+
+    var currentCls=null;
+    inCohort.forEach(function(r){
+      if (r.cls!==currentCls){
+        currentCls=r.cls;
+        var h=document.createElement('div'); h.className='grouphead';
+        h.textContent=currentCls||'No class'; box.appendChild(h);
+      }
+      box.appendChild(rcButton(r,false));
+    });
   });
 }
 function rcButton(r, showClass){
