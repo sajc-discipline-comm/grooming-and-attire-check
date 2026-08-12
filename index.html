@@ -704,17 +704,51 @@ function rawPost(payload){
     })
 }
 
-/** The first readable words of a non-JSON answer, for the error message. */
+/**
+ * What a non-JSON answer actually was. Google returns a handful of
+ * recognisable pages here and each one means something specific — saying
+ * which turns an unanswerable error into a two-minute fix.
+ */
 function gist(t){
-  var plain = String(t || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  var raw = String(t || '');
+  var plain = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   if (!plain) return ' (an empty answer)';
+
+  if (/drive-logo|Page not found/i.test(raw)) {
+    return '. That is Google\'s "page not found" page, which means the address in this ' +
+           'app is not serving the script. Check Apps Script → Deploy → Manage deployments: ' +
+           'the Web app URL there must match GAS_URL in index.html, and Who has access must ' +
+           'be Anyone';
+  }
+  if (/Authorization|permission|sign in|Sign in/i.test(plain.slice(0, 200))) {
+    return '. That is an authorisation page — the script needs re-authorising. Open the ' +
+           'Apps Script editor, run checkSetup once and accept the prompt, then redeploy';
+  }
+  if (/unable to open the file/i.test(plain)) {
+    return '. That is Google saying it could not open the script in time — usually a slow ' +
+           'first call rather than anything broken';
+  }
   return ' — it began: "' + plain.slice(0, 90) + (plain.length > 90 ? '…' : '') + '"';
 }
 
 /* Reading is safe to do twice; writing is not. A load that comes back
    mangled is very often fine on a second ask a moment later, and nobody
    should have to see an error for something the app could simply redo. */
-var READ_ONLY = { bootstrap:1, refresh:1 };
+var READ_ONLY = { bootstrap:1, refresh:1, peek:1 };
+
+/* CONTENTION IS NOW A STUTTER, NOT A STALL. The script no longer blocks for
+   twenty seconds waiting its turn; it gives up after four and says so, and
+   the phone quietly tries again a moment later. Nobody sees anything.
+
+   UNDO IS DELIBERATELY NOT IN THIS LIST. Every other write refuses a repeat
+   of itself — a second open row for the same offence is turned away, and a
+   second fail on the same day is turned away — so trying twice can only ever
+   produce one record. Undo has no such guard: if the first attempt in fact
+   succeeded and the answer was lost on the way back, a retry would remove
+   something else. So undo waits its turn properly and, very occasionally,
+   asks you to try again. That is the safer half of the trade. */
+var RETRY_ON_BUSY = { submit:1, recheck:1, edit:1 };
+var MAX_BUSY_TRIES = 4;
 
 /* What the last slow call actually cost, split into the part the server
    admits to and the part that happened somewhere else. If the server says
@@ -722,7 +756,8 @@ var READ_ONLY = { bootstrap:1, refresh:1 };
    amount of tuning the script will touch it. */
 var lastTiming = null;
 
-function post(action, body){
+function post(action, body, attempt){
+  attempt = attempt || 1;
   var payload = Object.assign({ action:action, token:S.token }, body||{});
   var started = Date.now();
 
@@ -734,6 +769,18 @@ function post(action, body){
     })
     .then(function(j){
       if (j && j.needsLogin) { signOut(j.error); throw failure(j.error, false); }
+
+      if (j && j.busy && RETRY_ON_BUSY[action] && attempt < MAX_BUSY_TRIES){
+        /* A little randomness, so two phones that collide do not then
+           collide again on exactly the same beat. */
+        var pause = 200 + Math.floor(Math.random() * 700);
+        return new Promise(function(done){ setTimeout(done, pause); })
+          .then(function(){ return post(action, body, attempt + 1); });
+      }
+      if (j && j.busy){
+        j.error = 'The other phone is still saving. Try that again in a moment.';
+      }
+
       var trip = Date.now() - started;
       if (trip > 3000){
         lastTiming = { action:action, trip:trip, ms:(j && j.ms) || null };
@@ -881,6 +928,27 @@ function signOut(why){
    ─────────────────────────────────────────────────────────────────────── */
 var CACHE_KEY = 'gt_boot';
 
+/* The version of WebApi.gs this app expects. If the deployment answers with
+   anything else — or with nothing, meaning it predates the stamp — every
+   other symptom becomes misleading: saves are slow because the old code
+   rewrites the whole Log, features are missing, errors make no sense. Say
+   it plainly instead of letting it hide behind everything else. */
+var EXPECTED_API = '2026-08-12';
+
+function checkApiVersion(j){
+  var got = j && j.apiVersion;
+  if (got === EXPECTED_API) return;
+  say('mHome',
+    got ? 'This app is talking to an older copy of the script (' + got + ', expected ' +
+          EXPECTED_API + '). Saves will be slow and some things will not work. ' +
+          'In Apps Script: Deploy → Manage deployments → edit the existing one → ' +
+          'Version: New version.'
+        : 'This app is talking to an older copy of the script — old enough that it does ' +
+          'not say which. Saves will be slow. In Apps Script: Deploy → Manage deployments ' +
+          '→ edit the existing one → Version: New version.',
+    'warn');
+}
+
 function saveBoot(j){
   try {
     sessionStorage.setItem(CACHE_KEY, JSON.stringify({
@@ -930,6 +998,7 @@ function bootstrap(force){
     applyBoot(j); saveBoot(j);
     document.getElementById('hdrSub').textContent = '· ' + S.who;
     say('mHome','');            /* whatever went wrong last time is over */
+    checkApiVersion(j);
     go('home', true);
   }).catch(function(e){ go('home', true); say('mHome', e.message); });
 }
@@ -1296,6 +1365,35 @@ function histFor(key, code){
            : {times:0, fails:0, noShows:0, trail:'', past:[]};
 }
 
+/* ── taking history back from the server ──────────────────────────────────
+   A recheck answers in one of two ways.
+
+   The full answer replaces what we hold. But the fast recheck — the one that
+   touches only the rows it needs — deliberately never reads the closed rows,
+   so it cannot know how many TIMES a student has been caught, or what their
+   past cases were. It says so, by marking its history partialHistory, and
+   sends back only the three things it does know: fails, no-shows, trail.
+
+   Overwriting the rest with zeros would turn a 4th-time offender into a
+   first-timer on screen. So a patch is merged, not assigned.
+   ─────────────────────────────────────────────────────────────────────── */
+function mergeHistory(key, j){
+  if (!j || !j.history) return;
+  if (!j.partialHistory){ S.history[key] = j.history; return; }
+  S.history[key] = S.history[key] || {};
+  for (var c in j.history){
+    var was = S.history[key][c] || {times:0, fails:0, noShows:0, trail:'', past:[]};
+    var p = j.history[c];
+    S.history[key][c] = {
+      times:   was.times,
+      fails:   p.fails   != null ? p.fails   : was.fails,
+      noShows: p.noShows != null ? p.noShows : was.noShows,
+      trail:   p.trail   != null ? p.trail   : was.trail,
+      past:    was.past
+    };
+  }
+}
+
 function worstTimes(key, codes){
   var n=0; codes.forEach(function(c){ var t=histFor(key,c).times; if (t>n) n=t; }); return n;
 }
@@ -1657,7 +1755,7 @@ function saveRecheck(resolved, stillOpen, btn, btnLabel){
       if (!j.ok){ say(where, j.error); return; }
       var nowOpen=stillOpen.concat(j.addedCodes||added);
       if (nowOpen.length) S.open[r.key]=nowOpen; else delete S.open[r.key];
-      if (j.history) S.history[r.key]=j.history;
+      mergeHistory(r.key, j);
       openRecheck();
       var msg=r.name+' — ';
       msg += stillOpen.length ? stillOpen.length+' still open' : 'all clear';
@@ -1762,7 +1860,7 @@ function submitNoShow(){
   post('recheck',{studentId:r.id,name:r.name,cls:r.cls,resolved:[],stillOpen:[],newCodes:[],noShow:true})
     .then(function(j){
       if (!j.ok){ say('mRcOne', j.error); return; }
-      if (j.history) S.history[r.key]=j.history;
+      mergeHistory(r.key, j);
       openRecheck();
       say('mRc', r.name+' marked as not turning up. They go to the top of the list.','warn');
     }).catch(function(e){
