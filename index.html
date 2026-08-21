@@ -671,6 +671,22 @@ function failure(message, unknown){
 
 /** One way in and out, so login cannot drift from everything else. */
 function rawPost(payload){
+  /* ── THE TEST SEAM ─────────────────────────────────────────────────────
+     The same one the Hub, the gate scanner and the green slip page have. With
+     window.__mockApi set, every call goes to the REAL handlers running in Node
+     over a fake spreadsheet instead of over the network.
+
+     IT IS HERE, at the bottom, so everything above it stays under test — the
+     read retry, the needsLogin handling, and the unreadable-answer branch that
+     says WHAT came back rather than "something went wrong".
+
+     ⚠️ THIS PAGE IS BEING REPLACED. The new grooming app writes into the
+     tracker's own Log rather than into this spreadsheet, and will carry this
+     seam by construction. The seam is here anyway because this page stays LIVE
+     until the new one takes over, and a page nobody can test is a page nobody
+     can fix. Added 21 August 2026. */
+  if (window.__mockApi) return Promise.resolve(window.__mockApi(payload.action, payload));
+
   if (GAS_URL.indexOf('PASTE_YOUR') === 0){
     return Promise.reject(failure(
       'This app has not been connected yet — the deployment URL is still the placeholder in index.html.', false));
@@ -1894,6 +1910,11 @@ document.addEventListener('keydown', function(e){
 });
 
 /* ── start ──────────────────────────────────────────────────────────── */
+/* Exposed for the automated checks only, exactly as the live latecoming screen
+   exposes its own. Reads nothing this page does not already show, and cannot
+   sign anybody in. */
+window.__scan = S;
+
 (function(){
   document.getElementById('loginDate').textContent = dateLine();
   try{
