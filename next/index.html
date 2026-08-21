@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#27326a">
+<title>SAJC Grooming Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0..100,0..1&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!--
+  SAJC GROOMING CHECK — phone app
+  ==========================================================================
+  Built 31 July 2026 for discipline@sajc.edu.sg.
+
+  PASTE THE DEPLOYMENT URL INTO GAS_URL BELOW. Nothing else in this file
+  needs editing, ever. The offence categories, the matching thresholds and
+  the roster all come from the spreadsheet at run time.
+
+  HOW THIS WORKS
+  --------------------------------------------------------------------------
+  The roster and the open-offence list are fetched ONCE, at login, and held
+  in memory. Every search, every match, and the decision between a fresh
+  check and a recheck all happen here on the phone with no network at all.
+  The only time the app talks to Google during a loop is when you submit.
+
+  That is what makes thirty students in a row possible.
+
+  WHERE THE DATA LIVES
+  --------------------------------------------------------------------------
+  In memory, and in sessionStorage — which the browser wipes the moment this
+  tab is closed. Never localStorage. GitHub serves this blank page; every
+  student name travels straight between Google and the phone.
+
+  DESIGN
+  --------------------------------------------------------------------------
+  Headers Fraunces, body Public Sans, paper Bone #f7f5f1, accent #27326a.
+  One question per screen. Every transition uses the same curve and the same
+  420ms — that consistency is what makes it feel considered.
+  If Google Fonts is ever unreachable it falls back to system serif and
+  sans: plainer, still perfectly usable.
+  ==========================================================================
+-->
+<style>
+:root{
+  --accent:#27326a; --accent-deep:#1b2450; --accent-tint:#e8eaf3;
+  --paper:#f7f5f1; --raised:#fffdfa; --line:#e4ded4;
+  --ink:#1b1e2b; --muted:#6e7180;
+  --good:#2f6b4f; --good-tint:#e6f0ea;
+  --warn:#8a5a12; --warn-tint:#f7edda;
+  --bad:#9d372e;  --bad-tint:#f7e8e5;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overscroll-behavior:none}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:'Public Sans',system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px; line-height:1.55; letter-spacing:-.005em;
+  display:flex; flex-direction:column;
+  padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+}
+.prog{height:2px;background:rgba(39,50,106,.10);flex:0 0 auto}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .55s var(--ease)}
+.top{
+  flex:0 0 auto;padding:14px 24px 0;display:flex;align-items:center;
+  justify-content:space-between;gap:14px;min-height:44px;
+}
+/* The brand yields to the buttons: it is a label, they are controls. */
+.brand{
+  font-family:'Fraunces',Georgia,serif;
+  font-variation-settings:'opsz' 14,'SOFT' 40,'WONK' 1;
+  font-weight:600;font-size:14.5px;color:var(--accent);
+  flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.brand em{font-style:normal;color:var(--muted);font-weight:400}
+.back{
+  border:0;background:none;color:var(--muted);font:inherit;font-size:14.5px;
+  cursor:pointer;padding:6px 2px;opacity:0;pointer-events:none;transition:opacity .3s;
+}
+.back.on{opacity:1;pointer-events:auto}
+.topbtns{display:flex;align-items:center;gap:14px;flex:0 0 auto}
+.stage{flex:1;position:relative;overflow:hidden}
+.pane{
+  position:absolute;inset:0;padding:18px 24px 34px;
+  display:flex;flex-direction:column;justify-content:center;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  opacity:0;transform:translateY(22px);pointer-events:none;
+  transition:opacity .42s var(--ease),transform .42s var(--ease);
+}
+.pane.on{opacity:1;transform:none;pointer-events:auto}
+.pane.out{opacity:0;transform:translateY(-16px)}
+.pane.flow{justify-content:flex-start;padding-top:10px}
+/* A pane is a flex column, so on a screen taller than the phone its children
+   would shrink into one another rather than scroll. Nothing may be squeezed. */
+.pane>*{flex:0 0 auto}
+.pane.on>*{animation:rise .5s var(--ease) backwards}
+.pane.on>*:nth-child(1){animation-delay:.03s}
+.pane.on>*:nth-child(2){animation-delay:.08s}
+.pane.on>*:nth-child(3){animation-delay:.13s}
+.pane.on>*:nth-child(4){animation-delay:.18s}
+.pane.on>*:nth-child(5){animation-delay:.23s}
+.pane.on>*:nth-child(6){animation-delay:.28s}
+.pane.on>*:nth-child(7){animation-delay:.33s}
+@keyframes rise{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:none}}
+
+.eyebrow{
+  font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 12px;
+}
+h1,h2{
+  font-family:'Fraunces',Georgia,serif;
+  font-variation-settings:'opsz' 60,'SOFT' 30,'WONK' 1;
+  font-weight:600;letter-spacing:-.018em;line-height:1.12;margin:0 0 8px;
+}
+h1{font-size:36px}
+h2{font-size:28px}
+.lede{color:var(--muted);font-size:15.5px;margin:0 0 24px;max-width:32ch}
+.big-name{
+  font-family:'Fraunces',Georgia,serif;
+  font-variation-settings:'opsz' 90,'SOFT' 20,'WONK' 1;
+  font-weight:600;font-size:36px;line-height:1.07;letter-spacing:-.025em;margin:0 0 6px;
+}
+.sub{color:var(--muted);font-size:16px;margin:0}
+
+.field{margin-bottom:20px}
+.field label{
+  display:block;font-size:12.5px;font-weight:600;letter-spacing:.045em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:9px;
+}
+.field input,.field textarea{
+  width:100%;border:0;border-bottom:2px solid var(--line);background:transparent;
+  font:inherit;color:var(--ink);transition:border-color .28s var(--ease);
+}
+.field input{font-size:22px;padding:6px 2px 11px}
+.field textarea{font-size:16px;padding:8px 2px 10px;min-height:56px;resize:vertical;line-height:1.5}
+.field input::placeholder,.field textarea::placeholder{color:#b9b3a8}
+.field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--accent)}
+
+/* password reveal */
+.field.reveal{position:relative}
+.field.reveal input{padding-right:46px}
+.eye{
+  position:absolute;right:-6px;bottom:2px;width:44px;height:44px;
+  display:grid;place-items:center;border:0;background:none;padding:0;cursor:pointer;
+  color:var(--muted);transition:color .2s var(--ease);
+}
+.eye:hover{color:var(--accent)}
+.eye:focus-visible{outline:2px solid var(--accent);outline-offset:-8px;border-radius:11px}
+.eye svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.eye.on{color:var(--accent)}
+.eye .slash{stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .42s var(--ease)}
+.eye.on .slash{stroke-dashoffset:0}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:11px;
+  border:0;border-radius:11px;background:var(--accent);color:#fff;
+  font:inherit;font-weight:600;font-size:16.5px;padding:15px 24px;cursor:pointer;
+  box-shadow:0 1px 2px rgba(27,30,43,.14),0 6px 18px -8px rgba(39,50,106,.55);
+  transition:transform .16s var(--ease),box-shadow .22s var(--ease),background .2s;
+}
+.btn:hover{background:var(--accent-deep);transform:translateY(-1.5px)}
+.btn:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(27,30,43,.16)}
+.btn:disabled{opacity:.55;transform:none;box-shadow:none;cursor:default}
+.btn.wide{width:100%}
+.btn.quiet{background:transparent;color:var(--accent);box-shadow:none;border:1.5px solid var(--line)}
+.btn.quiet:hover{background:var(--accent-tint);border-color:transparent}
+.btn.plain{background:none;color:var(--muted);box-shadow:none;padding:12px 4px;font-weight:500;
+  justify-content:center;text-align:center}
+.btn.plain:hover{color:var(--accent);background:none;transform:none}
+a.btn.plain{text-decoration:none;margin-top:4px}
+.btn.good{background:var(--good);box-shadow:0 6px 18px -8px rgba(47,107,79,.55)}
+.btn.good:hover{background:#255740}
+.btn.bad{background:var(--bad);box-shadow:0 6px 18px -8px rgba(157,55,46,.5)}
+.btn.bad:hover{background:#832e26}
+.stack{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+
+.choice{
+  display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  padding:15px 17px;margin-bottom:9px;border:1.5px solid var(--line);
+  border-radius:13px;background:var(--raised);font:inherit;color:var(--ink);
+  cursor:pointer;transition:border-color .2s,background .2s,transform .16s var(--ease),box-shadow .2s;
+}
+.choice:hover{border-color:var(--accent);transform:translateX(2.5px)}
+.choice:active{transform:translateX(1px) scale(.995)}
+.choice .key{
+  flex:0 0 auto;width:27px;height:27px;border-radius:7px;border:1.5px solid var(--line);
+  display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--muted);transition:all .2s;
+}
+.choice .txt{flex:1;min-width:0}
+.choice .txt b{display:block;font-weight:600;font-size:16.5px;letter-spacing:-.01em}
+.choice .txt span{display:block;font-size:13.5px;color:var(--muted);margin-top:1px}
+/* The committee's severity palette — the same scale as the printed
+   latecoming views, so nobody has to learn a second language for
+   "how bad is this". Mapped here by how many times a recheck was failed. */
+.choice.tier2,.choice.tier3,.choice.tier4,.choice.tier5{border-left-width:4px;border-left-style:solid}
+.choice.tier2{background:#fdfbe8;border-left-color:#FFF2A8}
+.choice.tier3{background:#fdf6e6;border-left-color:#FFD27A}
+.choice.tier4{background:#fdf0e6;border-left-color:#FFA862}
+.choice.tier5{background:#fdeae8;border-left-color:#FF8080}
+.trail{font-size:12.5px;color:var(--muted);margin:2px 0 0;letter-spacing:.01em}
+.trail.past{opacity:.82;font-style:italic}
+.choice .flags{display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:0 0 auto}
+/* On a narrow phone the pills would squeeze the name into a column two words
+   wide. Below this width they drop underneath instead, where there is room. */
+@media (max-width:379px){
+  .choice{flex-wrap:wrap}
+  .choice .flags{flex-direction:row;flex-wrap:wrap;width:100%;
+                 justify-content:flex-start;margin:8px 0 0;padding-left:40px}
+}
+.choice .flag{
+  flex:0 0 auto;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;
+  background:var(--bad-tint);color:var(--bad);
+}
+/* The tier fill, at full strength with black text — exactly as the sheets
+   and the printed views show it. Placed after the plain flag so it wins. */
+.choice .flag.t1{background:var(--line);color:var(--ink)}
+.choice .flag.t2{background:#FFF2A8;color:#000}
+.choice .flag.t3{background:#FFD27A;color:#000}
+.choice .flag.t4{background:#FFA862;color:#000}
+.choice .flag.t5{background:#FF8080;color:#000}
+/* A row that states a fact rather than offering a choice. Tighter than a
+   tappable row, because it has no target to be big enough for. */
+.choice.flat{cursor:default;background:transparent;border-style:dashed;padding:11px 15px}
+.choice.flat:hover{border-color:var(--line);transform:none}
+/* the tier edge stays solid — a dashed severity bar reads as a rendering fault */
+.choice.flat.tier2,.choice.flat.tier3,.choice.flat.tier4,.choice.flat.tier5{border-left-style:solid}
+.choice.sel{border-color:var(--accent);background:var(--accent-tint)}
+.choice.sel .key{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.note{padding:13px 16px;border-radius:11px;font-size:14.5px;margin-bottom:18px;border-left:3px solid;line-height:1.5}
+.note.err{background:var(--bad-tint);color:var(--bad);border-color:var(--bad)}
+.note.warn{background:var(--warn-tint);color:var(--warn);border-color:var(--warn)}
+.note.ok{background:var(--good-tint);color:var(--good);border-color:var(--good)}
+
+.tick{width:74px;height:74px;border-radius:50%;background:var(--good-tint);
+  display:grid;place-items:center;margin:0 auto 20px;animation:pop .55s var(--ease) backwards .08s}
+.tick svg{width:34px;height:34px;stroke:var(--good);stroke-width:2.6;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:32;stroke-dashoffset:32;
+  animation:draw .5s var(--ease) forwards .3s}
+@keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.centered{text-align:center}
+.centered .lede{margin-left:auto;margin-right:auto}
+
+.spin{width:26px;height:26px;border:2.5px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 22px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hint{font-size:12.5px;color:var(--muted);margin-top:18px;text-align:center}
+
+/* Search and refresh share one row: the input is an underline like every
+   other field, the refresh is an icon beside it rather than its own line. */
+.findrow{display:flex;align-items:flex-end;gap:12px;margin:2px 0 16px}
+.findrow input{
+  flex:1;min-width:0;border:0;border-bottom:2px solid var(--line);background:transparent;
+  font:inherit;font-size:17px;color:var(--ink);padding:5px 2px 8px;
+  transition:border-color .28s var(--ease);
+}
+.findrow input::placeholder{color:#b9b3a8}
+.findrow input:focus{outline:none;border-bottom-color:var(--accent)}
+.iconbtn{
+  flex:0 0 auto;width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);
+  background:transparent;color:var(--accent);font-size:18px;line-height:1;cursor:pointer;
+  transition:background .2s,border-color .2s,transform .16s var(--ease);
+}
+.iconbtn:hover{background:var(--accent-tint);border-color:transparent}
+.iconbtn:active{transform:scale(.94)}
+.iconbtn:disabled{opacity:.5;cursor:default}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:16px}
+.seg button{flex:1;padding:11px 6px;font:inherit;font-size:14px;font-weight:600;border:0;
+  background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
+.seg button.on{background:var(--accent);color:#fff}
+/* A cohort is a section, not a label — Fraunces and a rule under it, so it
+   reads a level above the class codes rather than competing with them. */
+.cohorthead{
+  font-family:'Fraunces',Georgia,serif;
+  font-variation-settings:'opsz' 30,'SOFT' 30,'WONK' 1;
+  font-weight:600;font-size:20px;letter-spacing:-.015em;color:var(--ink);
+  margin:28px 0 2px;padding-bottom:8px;border-bottom:1.5px solid var(--line);
+}
+.cohorthead:first-child{margin-top:2px}
+.grouphead{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.14em;
+  text-transform:uppercase;margin:18px 0 9px}
+.grouphead:first-child{margin-top:0}
+/* ── the card scanner ───────────────────────────────────────────────── */
+.viewfinder{
+  position:relative;width:100%;aspect-ratio:4/3;background:#000;
+  border-radius:16px;overflow:hidden;margin:4px 0 18px;
+}
+.viewfinder video{width:100%;height:100%;object-fit:cover;display:block}
+.vf-overlay{position:absolute;inset:0;pointer-events:none}
+.vf-overlay svg{position:absolute;inset:0;width:100%;height:100%}
+.vf-label,.vf-name{
+  position:absolute;left:7%;width:86%;text-align:center;color:rgba(255,255,255,.92);
+  font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  text-shadow:0 1px 5px rgba(0,0,0,.9);
+}
+.vf-label{top:5.5%}
+.vf-name{top:88.5%;color:rgba(255,255,255,.78)}
+.vf-busy{
+  position:absolute;inset:0;background:rgba(0,0,0,.78);display:none;
+  flex-direction:column;align-items:center;justify-content:center;color:#fff;
+}
+.vf-busy.on{display:flex}
+.vf-busy p{margin:0;font-size:14.5px;color:rgba(255,255,255,.85)}
+.shutter-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.shutter{
+  flex:0 0 auto;width:72px;height:72px;border-radius:50%;border:0;cursor:pointer;
+  background:var(--accent);box-shadow:0 0 0 5px var(--paper),0 0 0 7px var(--accent),
+    0 6px 20px -8px rgba(39,50,106,.6);
+  transition:transform .16s var(--ease),background .2s;
+}
+.shutter:hover{background:var(--accent-deep)}
+.shutter:active{transform:scale(.93)}
+.shutter:disabled{opacity:.5;cursor:default}
+.shutter-row .btn.plain{flex:1;min-width:0}
+canvas{display:none}
+</style>
+</head>
+<body>
+
+<div class="prog"><i id="bar"></i></div>
+<div class="top">
+  <div class="brand">SAJC Discipline Committee <em id="hdrSub"></em></div>
+  <div class="topbtns">
+    <button class="back" id="btnHome" onclick="goHome()">⌂ Home</button>
+    <button class="back" id="back" onclick="goBack()">← Back</button>
+  </div>
+</div>
+
+<div class="stage">
+
+<!-- 1 · LOGIN -->
+<section class="pane on" id="pLogin">
+  <p class="eyebrow" id="loginDate"></p>
+  <h1>Grooming &amp; Attire Check</h1>
+  <div id="mLogin"></div>
+  <div class="field">
+    <label for="who">Your name</label>
+    <input id="who" autocomplete="name">
+  </div>
+  <div class="field reveal">
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button class="eye" id="eye" type="button" onclick="togglePw()" aria-label="Show the password">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z"/>
+        <circle cx="12" cy="12" r="3.1"/>
+        <line class="slash" x1="4.2" y1="19.8" x2="19.8" y2="4.2"/>
+      </svg>
+    </button>
+  </div>
+  <button class="btn wide" id="btnLogin" onclick="doLogin()">Sign in</button>
+  <a class="btn plain wide" href="help.html" target="_blank" rel="noopener">Click here for the help guide.</a>
+</section>
+
+<!-- 2 · LOADING -->
+<section class="pane centered" id="pLoading">
+  <div class="spin"></div>
+  <h2 id="loadMsg">Fetching the roster</h2>
+  <p class="lede">This happens once. Everything after it is instant.</p>
+</section>
+
+<!-- 3 · HOME -->
+<section class="pane" id="pHome">
+  <p class="eyebrow" id="homeEyebrow"></p>
+  <h1>Ready.</h1>
+  <p class="lede" id="homeStats"></p>
+  <div id="mHome"></div>
+  <div class="stack">
+    <button class="btn wide" onclick="startLoop()">Start checking</button>
+    <button class="btn quiet wide" id="btnRecheck" onclick="goRecheck()">Recheck list</button>
+  </div>
+  <div id="recentWrap" style="display:none;margin-top:26px">
+    <p class="eyebrow">Entered this session</p>
+    <div id="recentList"></div>
+  </div>
+  <div class="stack" style="margin-top:22px">
+    <button class="btn plain" onclick="refreshAll()">↻ Refresh the roster</button>
+    <button class="btn plain" onclick="signOut()">Sign out</button>
+  </div>
+  <p class="hint" id="loadedAt"></p>
+</section>
+
+<!-- 4 · IDENTIFY -->
+<section class="pane flow" id="pFind">
+  <p class="eyebrow" id="findCount">Who is it?</p>
+  <h2>Find the student</h2>
+  <div id="mFind"></div>
+  <div class="field" style="margin-top:12px">
+    <label for="q">Type any part of the name, or a class</label>
+    <input id="q" autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="onSearch()">
+  </div>
+  <div id="hits"></div>
+  <button class="btn quiet wide" style="margin-top:6px" onclick="goScan()">📷 Scan their card instead</button>
+</section>
+
+<!-- 4b · SCAN -->
+<section class="pane flow" id="pScan">
+  <p class="eyebrow" id="scanWho"></p>
+  <h2>Scan their card</h2>
+  <p class="lede">Fit the whole card inside the box, and make sure the <b>name</b> is sharp and readable.</p>
+  <div id="mScan"></div>
+
+  <div class="viewfinder" id="viewfinder">
+    <video id="cam" playsinline muted autoplay></video>
+    <div class="vf-overlay">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <mask id="cardMask">
+            <rect width="100" height="100" fill="#fff"/>
+            <rect x="7" y="14" width="86" height="72" rx="2" fill="#000"/>
+          </mask>
+        </defs>
+        <rect width="100" height="100" fill="rgba(0,0,0,.62)" mask="url(#cardMask)"/>
+        <rect x="7" y="14" width="86" height="72" rx="2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>
+        <polyline points="7,24 7,14 17,14"  fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <polyline points="83,14 93,14 93,24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <polyline points="7,76 7,86 17,86"  fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <polyline points="83,86 93,86 93,76" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <div class="vf-label">Fit the card to the box</div>
+      <div class="vf-name">Name must be inside</div>
+    </div>
+    <div class="vf-busy" id="vfBusy"><div class="spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.25);border-top-color:#fff;margin:0 auto 14px"></div><p>Reading the card…</p></div>
+  </div>
+  <canvas id="shot" style="display:none"></canvas>
+
+  <div class="shutter-row">
+    <button class="btn plain" onclick="leaveScan()">← Back</button>
+    <button class="shutter" id="btnShot" onclick="capture()" aria-label="Take the photo"></button>
+    <button class="btn plain" onclick="leaveScan()">Type it</button>
+  </div>
+</section>
+
+<!-- 5 · CONFIRM -->
+<section class="pane" id="pConfirm">
+  <p class="eyebrow">Is this the right student?</p>
+  <p class="big-name" id="cName"></p>
+  <p class="sub" id="cCls"></p>
+  <div id="cOpen" style="margin-top:20px"></div>
+  <div class="stack" style="margin-top:16px">
+    <button class="btn wide" id="btnProceed" onclick="proceed()">Yes, continue</button>
+    <button class="btn plain wide" onclick="go('find')">No — go back</button>
+  </div>
+</section>
+
+<!-- 6 · OFFENCES -->
+<section class="pane flow" id="pOffences">
+  <p class="eyebrow" id="oWho"></p>
+  <h2>Select Relevant Offences</h2>
+  <div id="mOff"></div>
+  <div id="cats" style="margin-top:16px"></div>
+  <div class="field">
+    <label for="remarks">Remarks — optional</label>
+    <textarea id="remarks" placeholder="Anything the category doesn't capture"></textarea>
+  </div>
+  <button class="btn good wide" id="btnSubmit" onclick="submitCheck()">Save</button>
+  <button class="btn plain" onclick="go('find')">Cancel</button>
+</section>
+<!-- 7 · SAVED -->
+<section class="pane centered" id="pDone">
+  <div class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+  <h2>Saved</h2>
+  <p class="lede" id="dWhat"></p>
+  <div id="mDone"></div>
+  <div class="stack">
+    <button class="btn wide" onclick="nextStudent()">Next student</button>
+    <button class="btn plain wide" id="btnUndo" onclick="undoLast()">That was wrong — undo</button>
+    <button class="btn plain wide" onclick="go('home')">Finish for now</button>
+  </div>
+</section>
+
+<!-- 8 · RECHECK LIST -->
+<section class="pane flow" id="pRecheck">
+  <p class="eyebrow" id="rcCount"></p>
+  <h2>Recheck list</h2>
+  <div id="mRc"></div>
+  <div class="findrow">
+    <input id="rcQ" placeholder="Find a name or class" autocomplete="off"
+           autocapitalize="characters" spellcheck="false" oninput="paintRecheck()">
+    <button class="iconbtn" id="btnRcRefresh" onclick="refreshRecheck()"
+            aria-label="Refresh the list">↻</button>
+  </div>
+  <div class="seg">
+    <button id="segClass" class="on" onclick="setRcMode('class')">By class</button>
+    <button id="segPri" onclick="setRcMode('pri')">By priority</button>
+  </div>
+  <div id="rcList"></div>
+  <button class="btn quiet wide" style="margin-top:10px" onclick="copyList()">📋 Copy the list</button>
+</section>
+
+<!-- 9 · RECHECK ONE -->
+<section class="pane flow" id="pRcOne">
+  <p class="eyebrow">Rechecking</p>
+  <p class="big-name" id="rName" style="font-size:29px"></p>
+  <p class="sub" id="rCls"></p>
+  <div id="mRcOne" style="margin-top:18px"></div>
+  <p class="eyebrow" style="margin-top:14px">Outstanding</p>
+  <div id="rCats"></div>
+  <div class="stack">
+    <button class="btn good wide" id="btnPass" onclick="rcPass()">Pass — all fixed</button>
+    <button class="btn bad wide" id="btnFail" onclick="rcFail()">Fail — not fixed</button>
+    <button class="btn quiet wide" onclick="submitNoShow()">Didn't show up</button>
+    <button class="btn plain" onclick="openEdit()">Something here is wrong — fix it</button>
+    <button class="btn plain" onclick="openRecheck()">Back to the list</button>
+  </div>
+</section>
+
+<!-- 9b · WHICH ONES FAILED -->
+<section class="pane flow" id="pFail">
+  <p class="eyebrow" id="fWho"></p>
+  <h2>What is still wrong?</h2>
+  <div id="mFail"></div>
+  <p class="eyebrow" id="fStillHead">Still not fixed — untap anything they have sorted</p>
+  <div id="fCats"></div>
+  <div id="rNewWrap" style="margin-top:26px">
+    <p class="eyebrow">Any new offences?</p>
+    <div id="rNew"></div>
+  </div>
+  <button class="btn good wide" id="btnFailSave" onclick="submitFail()" style="margin-top:16px">Save</button>
+  <button class="btn plain" onclick="go('rcone')">Cancel</button>
+</section>
+
+<!-- 10 · FIX A MISTAKE -->
+<section class="pane flow" id="pEdit">
+  <p class="eyebrow">Fixing a mistake</p>
+  <p class="big-name" id="eName" style="font-size:29px"></p>
+  <p class="sub" id="eCls"></p>
+  <div id="mEdit" style="margin-top:18px"></div>
+  <p class="eyebrow" style="margin-top:20px">Tap whatever should not be there</p>
+  <div id="eWrong"></div>
+  <div id="eRightWrap" style="margin-top:26px">
+    <p class="eyebrow">And what should it have been?</p>
+    <div id="eRight"></div>
+  </div>
+  <button class="btn good wide" id="btnEdit" onclick="submitEdit()" style="margin-top:16px">Save the correction</button>
+  <button class="btn plain" onclick="backFromEdit()">Cancel</button>
+</section>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   PASTE YOUR DEPLOYMENT URL HERE — the one ending in /exec
+   ═══════════════════════════════════════════════════════════════════════ */
+/* ── THE NEW GROOMING APP ─────────────────────────────────────────────────
+   Everything this page records goes into the ATTENDANCE TRACKER's own 📋 Log,
+   as GROOM rows with the category in the Reason column — not into the grooming
+   spreadsheet. One book, one counting rule, one student ID.
+
+   THE OLD APP IS STILL LIVE at the root of this repo, against its own
+   deployment and its own book, and nothing here touches it. Cutover is moving
+   this file up one level; rollback is moving it back.
+
+   ⚠️ SO THE URL BELOW IS THE TRACKER'S, and it is the same one the Hub, the
+   gate scanner, the green slip page and the live screen already use. */
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxm68iLB0wBy-goORwxBAK3ZySAGT4LHV-R4KfB00PGdXL8fu569vrvvUUpzxF8nrhyIw/exec';
+
+var S = {
+  token:null, who:'', students:[], open:{}, cats:[],
+  /* ⚠️ DECLARED HERE, NOT CREATED BY applyOpen. The screens speak in category
+     codes and the server identifies an offence by its Log Entry ID, so this map
+     is the translation between them — and it is written to the moment anything
+     is recorded, which is BEFORE the recheck list has ever been fetched. Left
+     undefined until then, the first save of the day died with "cannot set
+     properties of undefined". */
+  entryFor:{}, openRow:{}, rcFetched:false,
+  cfg:{minScore:.72,minMargin:.15,graceDays:3},
+  student:null, selected:[], lastEntry:null, recent:[], done:0,
+  history:{}, rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[], failStill:[],
+  edRemove:[], edAdd:[], loadedAt:''
+};
+
+var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
+              scan:'pScan', confirm:'pConfirm', offences:'pOffences', done:'pDone',
+              recheck:'pRecheck', rcone:'pRcOne', edit:'pEdit', fail:'pFail' };
+var PROGRESS = { login:0, loading:.08, home:0, find:.25, scan:.25, confirm:.5,
+                 offences:.75, done:1, recheck:.35, rcone:.7, edit:.7, fail:.85 };
+/* ── what Back means ─────────────────────────────────────────────────────
+   UP one level, not backwards through everything you did.
+
+   The old version kept a stack of every screen visited, so after four
+   students Back walked you through the offence list and the pass/fail of
+   students already saved — screens belonging to finished work, where a
+   stray tap could save something twice.
+
+   A screen has one place above it. Where there is nowhere above — the
+   search, the recheck list, the Saved screen — Back does not appear at all,
+   because Home is in the bar and the Saved screen's ways on are its own
+   buttons.
+
+   rcone is the one screen with two honest parents: the recheck list, or a
+   search. It remembers which, and that is a single field, not a stack.
+   ─────────────────────────────────────────────────────────────────────── */
+var PARENT = {
+  scan:'find', confirm:'find', offences:'confirm',
+  rcone:'recheck', fail:'rcone', edit:'rcone'
+};
+
+function parentOf(name){
+  if (name === 'rcone') return S.rcFrom || 'recheck';
+  return PARENT[name] || null;
+}
+var current = 'login';
+
+/* ── transitions ────────────────────────────────────────────────────── */
+function go(name, isBack){
+  if (name === current) { paint(name); return; }
+  var cur = document.getElementById(PANES[current]);
+  var nxt = document.getElementById(PANES[name]);
+  cur.classList.remove('on');
+  if (!isBack) { cur.classList.add('out'); setTimeout(function(){ cur.classList.remove('out'); }, 430); }
+  current = name;
+  paint(name);
+  nxt.classList.add('on');
+  nxt.scrollTop = 0;
+  document.getElementById('bar').style.width = (PROGRESS[name] * 100) + '%';
+  var signedIn = name !== 'login' && name !== 'loading';
+  document.getElementById('back').classList.toggle('on', signedIn && !!parentOf(name));
+  document.getElementById('btnHome').classList.toggle('on', signedIn && name !== 'home');
+}
+
+/**
+ * Home from anywhere, in one tap. It clears the half-finished student rather
+ * than carrying them to the next screen, and it empties the back history,
+ * because Home is a starting point — going "back" from it to a screen you
+ * deliberately left is how people end up recording the wrong thing.
+ */
+function goHome(){
+  S.student=null; S.selected=[]; S.rcStudent=null;
+  S.rcFixed=[]; S.rcNew=[]; S.edRemove=[]; S.edAdd=[];
+  go('home', true);
+}
+function goBack(){
+  var up = parentOf(current);
+  if (up) go(up, true);
+}
+function paint(name){
+  if (name !== 'scan') stopCamera();          // never leave the camera running
+  if (name === 'home') paintHome();
+  if (name === 'find'){
+    document.getElementById('q').value=''; document.getElementById('hits').innerHTML=''; say('mFind','');
+    document.getElementById('findCount').textContent = 'Student No. ' + (S.done + 1);
+  }
+  if (name === 'scan'){
+    document.getElementById('scanWho').textContent = 'Student No. ' + (S.done + 1);
+    say('mScan','');
+  }
+}
+
+/** "Friday, 31 July 2026" — built by hand so it reads the same on every device. */
+function dateLine(){
+  var D=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var M=['January','February','March','April','May','June','July',
+         'August','September','October','November','December'];
+  var d=new Date();
+  return D[d.getDay()] + ', ' + d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear();
+}
+function say(where, text, kind){
+  var el = document.getElementById(where);
+  if (!text) { el.innerHTML=''; return; }
+  el.innerHTML = '<div class="note ' + (kind||'err') + '"></div>';
+  el.firstChild.textContent = text;
+}
+
+/* ── server ─────────────────────────────────────────────────────────── */
+/* ── talking to the server ───────────────────────────────────────────────
+   Three different things can go wrong and they are NOT the same thing:
+
+     1. the request never got out            → nothing was saved, say so
+     2. the answer came back unreadable      → it may well have saved anyway
+     3. the session expired                  → sign in again; not a network fault
+
+   The old version caught all three in one place and reported every one of
+   them as "could not reach the server… it needs redeploying", which is a
+   lie in two cases out of three, and the most alarming possible lie in the
+   one where the record was written perfectly well.
+
+   Errors carry `unknown` when the outcome genuinely cannot be told from
+   here. Anything that saves must check rather than guess — see verifySave.
+   ─────────────────────────────────────────────────────────────────────── */
+function failure(message, unknown){
+  var e = new Error(message);
+  e.unknown = !!unknown;
+  return e;
+}
+
+/** One way in and out, so login cannot drift from everything else. */
+function rawPost(payload){
+  /* ── THE TEST SEAM ─────────────────────────────────────────────────────
+     The same one the Hub, the gate scanner and the green slip page have. With
+     window.__mockApi set, every call goes to the REAL handlers running in Node
+     over a fake spreadsheet instead of over the network.
+
+     IT IS HERE, at the bottom, so everything above it stays under test — the
+     read retry, the needsLogin handling, and the unreadable-answer branch that
+     says WHAT came back rather than "something went wrong".
+
+     ⚠️ THIS PAGE IS BEING REPLACED. The new grooming app writes into the
+     tracker's own Log rather than into this spreadsheet, and will carry this
+     seam by construction. The seam is here anyway because this page stays LIVE
+     until the new one takes over, and a page nobody can test is a page nobody
+     can fix. Added 21 August 2026. */
+  if (window.__mockApi) return Promise.resolve(window.__mockApi(payload.action, payload));
+
+  if (GAS_URL.indexOf('PASTE_YOUR') === 0){
+    return Promise.reject(failure(
+      'This app has not been connected yet — the deployment URL is still the placeholder in index.html.', false));
+  }
+
+  return fetch(GAS_URL, { method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(payload) })
+    .catch(function(){
+      /* The request itself failed. Google was never reached, or the answer
+         never came back — from here those look identical, so the outcome is
+         unknown for anything that writes. */
+      throw failure(navigator.onLine
+        ? 'The connection dropped.'
+        : 'No internet connection.', true);
+    })
+    .then(function(r){
+      return r.text().then(function(t){
+        try { return JSON.parse(t); }
+        catch (e){
+          /* Apps Script answered with something that is not JSON — an error
+             page, or a redirect that went astray. doPost may already have
+             run and written to the sheet.
+
+             Say WHAT came back. "Something unreadable" cannot be diagnosed
+             from the front of assembly; "Sorry, unable to open the file at
+             this time" can be, immediately. */
+          throw failure('The server answered with something unreadable' + gist(t) + '.', true);
+        }
+      });
+    })
+}
+
+/**
+ * What a non-JSON answer actually was. Google returns a handful of
+ * recognisable pages here and each one means something specific — saying
+ * which turns an unanswerable error into a two-minute fix.
+ */
+function gist(t){
+  var raw = String(t || '');
+  var plain = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!plain) return ' (an empty answer)';
+
+  if (/drive-logo|Page not found/i.test(raw)) {
+    return '. That is Google\'s "page not found" page, which means the address in this ' +
+           'app is not serving the script. Check Apps Script → Deploy → Manage deployments: ' +
+           'the Web app URL there must match GAS_URL in index.html, and Who has access must ' +
+           'be Anyone';
+  }
+  if (/Authorization|permission|sign in|Sign in/i.test(plain.slice(0, 200))) {
+    return '. That is an authorisation page — the script needs re-authorising. Open the ' +
+           'Apps Script editor, run checkSetup once and accept the prompt, then redeploy';
+  }
+  if (/unable to open the file/i.test(plain)) {
+    return '. That is Google saying it could not open the script in time — usually a slow ' +
+           'first call rather than anything broken';
+  }
+  return ' — it began: "' + plain.slice(0, 90) + (plain.length > 90 ? '…' : '') + '"';
+}
+
+/* Reading is safe to do twice; writing is not. A load that comes back
+   mangled is very often fine on a second ask a moment later, and nobody
+   should have to see an error for something the app could simply redo. */
+var READ_ONLY = { bootstrap:1, refresh:1, peek:1 };
+
+/* CONTENTION IS NOW A STUTTER, NOT A STALL. The script no longer blocks for
+   twenty seconds waiting its turn; it gives up after four and says so, and
+   the phone quietly tries again a moment later. Nobody sees anything.
+
+   UNDO IS DELIBERATELY NOT IN THIS LIST. Every other write refuses a repeat
+   of itself — a second open row for the same offence is turned away, and a
+   second fail on the same day is turned away — so trying twice can only ever
+   produce one record. Undo has no such guard: if the first attempt in fact
+   succeeded and the answer was lost on the way back, a retry would remove
+   something else. So undo waits its turn properly and, very occasionally,
+   asks you to try again. That is the safer half of the trade. */
+var RETRY_ON_BUSY = { submit:1, recheck:1, edit:1 };
+var MAX_BUSY_TRIES = 4;
+
+/* What the last slow call actually cost, split into the part the server
+   admits to and the part that happened somewhere else. If the server says
+   one second and the phone waited sixty, the time is not in our code and no
+   amount of tuning the script will touch it. */
+var lastTiming = null;
+
+function post(action, body, attempt){
+  attempt = attempt || 1;
+  var payload = Object.assign({ action:action, token:S.token }, body||{});
+  var started = Date.now();
+
+  return rawPost(payload)
+    .catch(function(e){
+      if (!READ_ONLY[action] || !e.unknown) throw e;
+      return new Promise(function(done){ setTimeout(done, 700); })
+        .then(function(){ return rawPost(payload); });
+    })
+    .then(function(j){
+      if (j && j.needsLogin) { signOut(j.error); throw failure(j.error, false); }
+
+      if (j && j.busy && RETRY_ON_BUSY[action] && attempt < MAX_BUSY_TRIES){
+        /* A little randomness, so two phones that collide do not then
+           collide again on exactly the same beat. */
+        var pause = 200 + Math.floor(Math.random() * 700);
+        return new Promise(function(done){ setTimeout(done, pause); })
+          .then(function(){ return post(action, body, attempt + 1); });
+      }
+      if (j && j.busy){
+        j.error = 'The other phone is still saving. Try that again in a moment.';
+      }
+
+      var trip = Date.now() - started;
+      if (trip > 3000){
+        lastTiming = { action:action, trip:trip, ms:(j && j.ms) || null };
+        try { console.log('[grooming] ' + describeTiming(lastTiming)); } catch(e){}
+      }
+      return j;
+    });
+}
+
+/** One sentence saying where a slow call spent its time. */
+function describeTiming(t){
+  var secs = function(n){ return (n/1000).toFixed(1) + 's'; };
+  if (!t.ms){
+    return t.action + ' took ' + secs(t.trip) + ' — the server did not report its own time.';
+  }
+  var elsewhere = Math.max(0, t.trip - t.ms.total);
+  var parts = [];
+  if (t.ms.lock  > 500) parts.push(secs(t.ms.lock) + ' waiting for another save to finish');
+  if (t.ms.read  > 500) parts.push(secs(t.ms.read) + ' reading');
+  if (t.ms.write > 500) parts.push(secs(t.ms.write) + ' writing');
+  return t.action + ' took ' + secs(t.trip) + ': ' + secs(t.ms.total) + ' in the script' +
+         (parts.length ? ' (' + parts.join(', ') + ')' : '') +
+         ', ' + secs(elsewhere) + ' getting there and back.';
+}
+
+/**
+ * A short summary of everything a save could have changed for one student:
+ * what they have open, and how their counts stand. If this differs after a
+ * fresh read, the save landed.
+ */
+function stateSig(key){
+  var codes = (S.open[key] || []).slice().sort();
+  var h = S.history[key] || {};
+  return codes.join(',') + '|' + codes.map(function(c){
+    var x = h[c] || {};
+    return (x.times||0) + ':' + (x.fails||0) + ':' + (x.noShows||0);
+  }).join(',');
+}
+
+/**
+ * After a save whose outcome is unknown, go and look.
+ *
+ * The sheet is the truth and it is one cheap call away. Telling somebody
+ * "nothing was saved" when it plainly was is worse than saying nothing:
+ * they do it again, and now there are two records — or they stop trusting
+ * the app, which is worse still.
+ */
+function verifySave(err, where, who, sigBefore, onLanded){
+  if (!err.unknown){ say(where, err.message); return; }
+
+  say(where, 'Checking whether that saved…', 'warn');
+
+  /* peek, not bootstrap. Asking about one student is one narrow read of the
+     Log; bootstrap re-reads the whole Master Database across every intake
+     tab when the cache is cold, so checking a save was costing more than
+     the save it was checking. */
+  post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
+    .then(function(j){
+      if (!j.ok){ say(where, err.message + ' Could not check either — try again.'); return; }
+      if (j.open && j.open.length) S.open[who.key] = j.open; else delete S.open[who.key];
+      S.history[who.key] = j.history || {};
+
+      if (stateSig(who.key) !== sigBefore){
+        say(where,'');
+        if (onLanded) onLanded();
+      } else {
+        say(where, err.message + ' Nothing was saved — try again.');
+      }
+    })
+    .catch(function(){
+      say(where, err.message + ' Could not check either. Refresh in a moment and see.');
+    });
+}
+
+/**
+ * A save that takes more than a few seconds needs to say so. Silence for
+ * half a minute is what makes somebody press the button again.
+ */
+function slowNote(where, on){
+  clearTimeout(slowNote._t);
+  if (!on){
+    /* Clear it only if it is still ours — this runs before anything else is
+       said, so nothing real is being wiped. */
+    if (slowNote._shown === where) say(where, '');
+    slowNote._shown = null;
+    return;
+  }
+  slowNote._t = setTimeout(function(){
+    slowNote._shown = where;
+    say(where, 'Still saving. The record may already have it — do not press it again.', 'warn');
+  }, 5000);
+}
+
+function togglePw(){
+  var i = document.getElementById('pw'), b = document.getElementById('eye');
+  var show = i.type === 'password';
+  i.type = show ? 'text' : 'password';
+  b.classList.toggle('on', show);
+  b.setAttribute('aria-label', show ? 'Hide the password' : 'Show the password');
+  i.focus();
+}
+function doLogin(){
+  var who = document.getElementById('who').value.trim();
+  var pw  = document.getElementById('pw').value;
+  if (!who) { say('mLogin','Put your name in — it goes into the record so the DC knows who checked.'); return; }
+  if (!pw)  { say('mLogin','Enter the password.'); return; }
+  var b = document.getElementById('btnLogin');
+  b.disabled = true; b.textContent = 'Signing in…'; say('mLogin','');
+  rawPost({ action:'groomLogin', password:pw })
+    .then(function(j){
+      b.disabled = false; b.textContent = 'Sign in';
+      if (!j.ok) { say('mLogin', j.error || 'Could not sign in.'); return; }
+      S.token = j.token; S.who = who;
+      try { sessionStorage.setItem(TOKEN_KEY, j.token); sessionStorage.setItem(WHO_KEY, who); } catch(e){}
+      document.getElementById('pw').value = '';
+      bootstrap(false);
+    })
+    .catch(function(e){
+      b.disabled = false; b.textContent = 'Sign in';
+      /* Signing in writes nothing, so an unknown outcome is simply a retry. */
+      say('mLogin', e.message + ' Try again.');
+    });
+}
+
+function signOut(why){
+  S.token=null; S.students=[]; S.open={}; S.recent=[]; S.done=0;
+  try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(WHO_KEY);
+        sessionStorage.removeItem(CACHE_KEY); } catch(e){}
+  document.getElementById('hdrSub').textContent='';
+  document.getElementById('pw').type='password';
+  document.getElementById('eye').classList.remove('on');
+  go('login', true);
+  if (why) say('mLogin', why);
+}
+
+/* ── the one big call ───────────────────────────────────────────────── */
+/* ── remembering the last load ──────────────────────────────────────────
+   The roster and the open list are kept in sessionStorage, which the browser
+   wipes when this tab closes — the same store the token already uses, and the
+   same decision: never localStorage, nothing that outlives the tab.
+
+   On a reload the app paints from that copy IMMEDIATELY and re-fetches in the
+   background, so reopening costs nothing while the numbers still end up
+   current within a second. A cold first sign-in still waits properly.
+   ─────────────────────────────────────────────────────────────────────── */
+/* ⚠️ DIFFERENT KEYS FROM THE OLD APP, AND THIS IS NOT COSMETIC. Both pages are
+   served from the same GitHub Pages origin, so they share one sessionStorage.
+   Reusing `gt_token` would mean signing into either app handed the OTHER one a
+   token minted by a DIFFERENT server against a different secret — which
+   validates nowhere and reads on screen as "your session has expired" on an app
+   nobody has touched. */
+var CACHE_KEY = 'gt2_boot';
+var TOKEN_KEY = 'gt2_token';
+var WHO_KEY   = 'gt2_who';
+
+/* The version of WebApi.gs this app expects. If the deployment answers with
+   anything else — or with nothing, meaning it predates the stamp — every
+   other symptom becomes misleading: saves are slow because the old code
+   rewrites the whole Log, features are missing, errors make no sense. Say
+   it plainly instead of letting it hide behind everything else. */
+var EXPECTED_API = '2026-08-12';
+
+function checkApiVersion(j){
+  var got = j && j.apiVersion;
+  if (got === EXPECTED_API) return;
+  say('mHome',
+    got ? 'This app is talking to an older copy of the script (' + got + ', expected ' +
+          EXPECTED_API + '). Saves will be slow and some things will not work. ' +
+          'In Apps Script: Deploy → Manage deployments → edit the existing one → ' +
+          'Version: New version.'
+        : 'This app is talking to an older copy of the script — old enough that it does ' +
+          'not say which. Saves will be slow. In Apps Script: Deploy → Manage deployments ' +
+          '→ edit the existing one → Version: New version.',
+    'warn');
+}
+
+function saveBoot(j){
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+      at: Date.now(), students: j.students,
+      categories: j.categories, config: j.config, serverTime: j.serverTime
+    }));
+  } catch(e){ /* a full quota is not worth failing a sign-in over */ }
+}
+
+function readBoot(){
+  try {
+    var raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    var j = JSON.parse(raw);
+    if (!j || !j.students || !j.students.length) return null;
+    return j;
+  } catch(e){ return null; }
+}
+
+function applyBoot(j){
+  S.students = j.students||[]; S.cats = j.categories||[];
+  S.cfg = j.config||S.cfg; S.loadedAt = j.serverTime||'';
+}
+
+/* ── WHO IS STILL OWED A LOOK ──────────────────────────────────────────────
+   The old app got this inside bootstrap, as `open` keyed by student. The
+   tracker keeps it separate — groomOpen — because it is a different question
+   with a different lifetime: the roster changes once a term and this changes
+   every time somebody records anything.
+
+   IT ARRIVES AS OFFENCES AND IS FOLDED INTO STUDENTS HERE, so every screen
+   below this line works exactly as it did. What is new is `S.entryFor`: the
+   server now identifies an offence by its Log Entry ID rather than by student
+   and category, which is what lets two students with the same name and class
+   stop being the same record. The screens still speak in category codes; this
+   map is the translation, and it lives in one place. */
+function applyOpen(rows){
+  S.open = {}; S.entryFor = {}; S.openRow = {};
+  (rows||[]).forEach(function(r){
+    var key = r.studentId || ('~'+r.cls+'|'+r.name);
+    if (!S.open[key]) S.open[key] = [];
+    S.open[key].push(r.category);
+    S.entryFor[key + '|' + r.category] = r.entryId;
+    S.openRow[r.entryId] = r;
+  });
+}
+
+/* The entry IDs behind a student's category codes, for a call that has to name
+   offences. A code with no entry is DROPPED rather than sent as undefined —
+   the server would refuse the whole batch, which is right, but the cause would
+   be invisible. This cannot happen unless the list is stale, and if it does the
+   refresh button is the fix. */
+function entriesFor(key, codes){
+  var out = [];
+  (codes||[]).forEach(function(c){
+    var id = S.entryFor[key + '|' + c];
+    if (id) out.push(id);
+  });
+  return out;
+}
+
+function bootstrap(force){
+  var warm = force ? null : readBoot();
+
+  if (warm){
+    applyBoot(warm);
+    document.getElementById('hdrSub').textContent = '· ' + S.who;
+    go('home', true);
+    /* Silent: nothing on screen says it is happening, because nothing is
+       waiting on it. If it fails, the remembered copy is still usable. */
+    post('bootstrap', {}).then(function(j){
+      if (!j.ok) return;
+      applyBoot(j); saveBoot(j);
+      say('mHome','');
+      if (current === 'home') paintHome();
+    }).catch(function(){});
+    return;
+  }
+
+  go('loading');
+  document.getElementById('loadMsg').textContent = force ? 'Re-reading the roster' : 'Fetching the roster';
+  post(force ? 'refresh' : 'bootstrap', {}).then(function(j){
+    if (!j.ok) { signOut(j.error); return; }
+    applyBoot(j); saveBoot(j);
+    document.getElementById('hdrSub').textContent = '· ' + S.who;
+    say('mHome','');            /* whatever went wrong last time is over */
+    go('home', true);
+  }).catch(function(e){ go('home', true); say('mHome', e.message); });
+}
+function refreshAll(){ bootstrap(true); }
+
+function paintHome(){
+  var openCount = Object.keys(S.open).length;
+  document.getElementById('homeEyebrow').textContent = dateLine();
+  document.getElementById('homeStats').textContent = openCount
+    ? openCount + (openCount===1 ? ' needs to be rechecked.' : ' need to be rechecked.')
+    : 'Nobody needs a recheck.';
+  document.getElementById('btnRecheck').textContent = 'Recheck list · ' + openCount;
+  document.getElementById('loadedAt').textContent =
+    (S.loadedAt ? 'Roster loaded at ' + S.loadedAt : '') +
+    (lastTiming ? '  ·  Last slow call: ' + describeTiming(lastTiming) : '');
+
+  var wrap = document.getElementById('recentWrap'), list = document.getElementById('recentList');
+  if (!S.recent.length) { wrap.style.display='none'; return; }
+  wrap.style.display='block'; list.innerHTML='';
+  S.recent.forEach(function(r){
+    var b = document.createElement('button');
+    b.className='choice';
+    b.innerHTML='<span class="key">✕</span><span class="txt"><b></b><span></span></span>';
+    b.querySelector('b').textContent = r.name;
+    b.querySelector('.txt span').textContent = r.cls + ' · ' + r.what;
+    b.onclick = function(){ removeRecent(r.entryId); };
+    list.appendChild(b);
+  });
+}
+/* ── TAKING A CHECK BACK ───────────────────────────────────────────────────
+   ONE CHECK IS SEVERAL ROWS NOW — one per category — so undoing it is several
+   calls, and they can disagree: an offence that has already been rechecked
+   cannot be undone at all, deliberately, because deleting it would orphan the
+   recheck rows pointing at it.
+
+   SO THIS REPORTS WHAT ACTUALLY HAPPENED rather than assuming. Partial success
+   is a real outcome here and the screen says which ones went. */
+function undoEntries(ids, done){
+  var left = ids.length, removed = [], refused = [];
+  if (!left) { done(removed, refused); return; }
+  ids.forEach(function(id){
+    post('groomUndo',{entryId:id})
+      .then(function(j){ (j && j.ok ? removed : refused).push({id:id, why:j && j.error}); })
+      .catch(function(e){ refused.push({id:id, why:e.message}); })
+      .then(function(){ if (--left === 0) done(removed, refused); });
+  });
+}
+
+function removeRecent(entryId){
+  if (!confirm('Remove that entry from the record?')) return;
+  var gone = S.recent.filter(function(r){ return (r.entryIds||[]).indexOf(entryId)>=0; })[0];
+  var ids = gone ? gone.entryIds : [entryId];
+  undoEntries(ids, function(removed, refused){
+    if (removed.length && gone){
+      S.recent = S.recent.filter(function(r){ return r !== gone; });
+      recomputeOpenAfterUndo(gone);
+      S.done = Math.max(0, S.done-1);
+    }
+    say('mHome', refused.length
+      ? removed.length + ' removed, ' + refused.length + ' could not be: ' +
+        (refused[0].why || 'already rechecked.')
+      : 'Removed.', refused.length ? 'warn' : 'ok');
+    paintHome();
+  });
+}
+function recomputeOpenAfterUndo(entry){
+  (entry.codes||[]).forEach(function(c){ delete S.entryFor[entry.key+'|'+c]; });
+  if (!S.open[entry.key]) return;
+  S.open[entry.key] = S.open[entry.key].filter(function(c){ return entry.codes.indexOf(c)===-1; });
+  if (!S.open[entry.key].length) delete S.open[entry.key];
+}
+
+/* ── AFTER A RECHECK, ASK RATHER THAN GUESS ────────────────────────────────
+   The old app patched its own copy of who-is-open from what it had just sent.
+   That works until the server does something the phone did not ask for — and
+   it now does exactly that: a second failed look RAISES A NEW OFFENCE, which
+   belongs on the list the phone is holding.
+
+   So the list is re-read. It costs one call at the end of a recheck, which is
+   not a moment anybody is waiting in a queue, and it means the screen cannot
+   drift from the sheet. If the re-read fails the local patch stands, because a
+   stale list is better than a blank one. */
+function refreshOpenAfterSave(r, j, msg, kind){
+  post('groomOpen',{})
+    .then(function(o){ if (o && o.ok) applyOpen(o.rows); })
+    .catch(function(){})
+    /* ⚠️ THE MESSAGE IS SET AFTER openRecheck, NOT BEFORE. openRecheck clears
+       mRc as it redraws — which is right, the old message belongs to the old
+       list — so a caller that says its piece first watches it vanish a second
+       later, once the re-read lands. The old app could say it first because it
+       redrew synchronously; this one asks the server, so the message has to
+       travel with the callback. */
+    .then(function(){ openRecheck(); if (msg) say('mRc', msg, kind); });
+}
+
+/* ── matching, all local ────────────────────────────────────────────── */
+function norm(s){ return String(s||'').toUpperCase().replace(/[(),.'’\-]/g,' ').replace(/\s+/g,' ').trim(); }
+function lev(a,b){
+  if (a===b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  var prev=[],cur=[],i,j;
+  for (j=0;j<=b.length;j++) prev[j]=j;
+  for (i=1;i<=a.length;i++){
+    cur[0]=i;
+    for (j=1;j<=b.length;j++)
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a.charAt(i-1)===b.charAt(j-1)?0:1));
+    for (j=0;j<=b.length;j++) prev[j]=cur[j];
+  }
+  return prev[b.length];
+}
+function score(q,name){
+  var nq=norm(q), nn=norm(name);
+  if (!nq||!nn) return 0;
+  var qa=nq.split(' ').filter(Boolean), na=nn.split(' ').filter(Boolean);
+  var hits=0;
+  qa.forEach(function(w){ if (na.some(function(x){ return x.indexOf(w)===0||w.indexOf(x)===0; })) hits++; });
+  var maxLen=Math.max(nq.length,nn.length)||1;
+  return (hits/qa.length)*0.74 + (1-lev(nq,nn)/maxLen)*0.26;
+}
+function search(q,limit){
+  var nq=norm(q);
+  if (nq.length<2) return [];
+  var isClass=/^\d\d[A-Z]\d\d$/.test(nq), out=[];
+  for (var i=0;i<S.students.length;i++){
+    var st=S.students[i];
+    if (isClass){ if (norm(st[2])===nq) out.push({st:st,pct:1}); continue; }
+    var sc=score(nq,st[1]);
+    if (sc>0.25) out.push({st:st,pct:sc});
+  }
+  out.sort(function(a,b){ return b.pct-a.pct || String(a.st[1]).localeCompare(String(b.st[1])); });
+  return out.slice(0, limit||8);
+}
+function onSearch(){
+  var q=document.getElementById('q').value;
+  var hits=search(q,8), box=document.getElementById('hits');
+  box.innerHTML=''; say('mFind','');
+  if (!q.trim()) return;
+  if (!hits.length){
+    var p=document.createElement('p'); p.className='lede'; p.textContent='Nobody matches that.';
+    box.appendChild(p);
+    var b=document.createElement('button');
+    b.className='btn quiet wide'; b.textContent='Record anyway — not in the roster yet';
+    b.onclick=function(){ recordAnyway(q.trim()); };
+    box.appendChild(b);
+    return;
+  }
+  hits.forEach(function(h,i){ box.appendChild(hitButton(h.st, i + 1)); });
+}
+function hitButton(st, key){
+  var b=document.createElement('button');
+  b.className='choice';
+  var openCodes=S.open[st[0]]||[];
+  b.innerHTML='<span class="key"></span><span class="txt"><b></b><span></span></span>' +
+    (openCodes.length ? '<span class="flag">Recheck</span>' : '');
+  b.querySelector('.key').textContent = key ? String(key) : '·';
+  b.querySelector('b').textContent = st[1];
+  b.querySelector('.txt span').textContent = st[2] + (st[3] ? ' · ' + st[3] : '');
+  b.onclick=function(){ chooseStudent(st); };
+  return b;
+}
+
+/* ── the loop ───────────────────────────────────────────────────────── */
+function startLoop(){ go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
+function nextStudent(){ S.student=null; S.selected=[]; go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
+/* ⚠️ GENDER IS st[4], NOT st[3]. The tracker's bootstrap sends
+   [id, name, class, INDEX NUMBER, gender]; the old grooming project's sent
+   [id, name, class, gender]. Reading the old position gave every student a
+   gender of "7" — which is not M or F, so labelForStudent fell through to the
+   generic name and every category drew for everybody, including the two that
+   apply to one gender only. Nothing errored; a boy was simply offered "Skirt
+   Length". Found by the browser test on 22 August 2026, which is the entire
+   reason that harness was built before this page was written. */
+function chooseStudent(st){ S.student={id:st[0],name:st[1],cls:st[2],gender:st[4]||''}; showConfirm(); }
+function recordAnyway(typed){
+  if (!confirm('Record "'+typed+'" without a Student ID?\n\nUse this only for a student who genuinely is not in the Master Database yet — a transfer whose roster import has not run. It shows amber in the sheet so it can be linked up later.')) return;
+  var cls = prompt('Their class, if you know it:','')||'';
+  S.student={id:'',name:typed.toUpperCase(),cls:cls.toUpperCase().trim(),gender:''};
+  showConfirm();
+}
+function openKeyFor(s){ return s.id || ('~'+s.cls+'|'+s.name); }
+function showConfirm(){
+  var s=S.student;
+  document.getElementById('cName').textContent=s.name;
+  document.getElementById('cCls').textContent=s.cls+(s.gender?' · '+s.gender:'');
+  var openCodes=S.open[openKeyFor(s)]||[], box=document.getElementById('cOpen');
+  box.innerHTML='';
+  if (openCodes.length){
+    var d=document.createElement('div'); d.className='note warn';
+    d.textContent='Already open: '+openCodes.map(labelFor).join(', ');
+    box.appendChild(d);
+    document.getElementById('btnProceed').textContent='Yes — recheck them';
+  } else {
+    document.getElementById('btnProceed').textContent='Yes, continue';
+  }
+  if (!s.id){
+    var w=document.createElement('div'); w.className='note warn';
+    w.textContent='No Student ID — recorded for linking up later.';
+    box.appendChild(w);
+  }
+  go('confirm');
+}
+function proceed(){
+  var openCodes=S.open[openKeyFor(S.student)]||[];
+  if (openCodes.length){ openRecheckOne(S.student, openCodes, 'find'); return; }
+  showOffences();
+}
+function labelFor(code){
+  var c=S.cats.filter(function(x){ return x.code===code; })[0];
+  return c ? c.name : code;
+}
+/** The gender rule: blank means don't offer it to that gender at all. */
+function labelForStudent(cat,gender){
+  var g=String(gender||'').toUpperCase();
+  if (g.indexOf('M')===0) return cat.boys;
+  if (g.indexOf('F')===0) return cat.girls;
+  return cat.name;
+}
+function showOffences(){
+  var s=S.student; S.selected=[];
+  document.getElementById('oWho').textContent = s.name + ' · ' + s.cls;
+  document.getElementById('remarks').value=''; say('mOff','');
+  var box=document.getElementById('cats'); box.innerHTML=''; var n=0;
+  S.cats.forEach(function(c){
+    var label=labelForStudent(c, s.gender);
+    if (!label) return;
+    n++;
+    var b=document.createElement('button');
+    b.className='choice'; b.dataset.code=c.code;
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(n);
+    b.querySelector('b').textContent=label;
+    b.onclick=function(){ toggleCat(b, c.code); };
+    box.appendChild(b);
+  });
+  if (!n) box.innerHTML='<p class="lede">No categories are set up. Check the Categories tab in the spreadsheet.</p>';
+  go('offences');
+}
+function toggleCat(b, code){
+  var i=S.selected.indexOf(code);
+  if (i===-1){ S.selected.push(code); b.classList.add('sel'); }
+  else { S.selected.splice(i,1); b.classList.remove('sel'); }
+}
+function submitCheck(){
+  if (!S.selected.length){ say('mOff','Tap at least one category, or cancel.'); return; }
+  var s=S.student, b=document.getElementById('btnSubmit');
+  var key=openKeyFor(s), sigBefore=stateSig(key);
+  b.disabled=true; b.textContent='Saving…';
+  slowNote('mOff', true);
+  post('groomSubmit',{ studentId:s.id, name:s.name, cls:s.cls,
+    categories:S.selected, remarks:document.getElementById('remarks').value.trim(), by:S.who })
+    .then(function(j){
+      b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
+      if (!j.ok){ say('mOff', j.error); return; }
+      /* ONE ROW PER CATEGORY, each with its own entry id, because each is its
+         own thing to fix and its own thing to recheck. */
+      var made=j.recorded||[];
+      var codes=made.map(function(x){ return x.category; });
+      S.open[key]=(S.open[key]||[]).concat(codes);
+      made.forEach(function(x){ S.entryFor[key+'|'+x.category]=x.entryId; });
+      S.lastEntry={entryIds:made.map(function(x){ return x.entryId; }),key:key,codes:codes};
+      S.recent.unshift({entryIds:S.lastEntry.entryIds,key:key,name:s.name,cls:s.cls,codes:codes,
+        what:codes.map(labelFor).join(', ')});
+      S.recent=S.recent.slice(0,10); S.done++;
+      document.getElementById('dWhat').textContent = s.name + ' — ' + codes.map(labelFor).join(', ') +
+        (j.duplicates && j.duplicates.length
+           ? ' · already recorded today: ' + j.duplicates.map(labelFor).join(', ') : '');
+      document.getElementById('btnUndo').style.display='block';
+      say('mDone','');
+      go('done');
+    })
+    .catch(function(e){
+      b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
+      verifySave(e, 'mOff', {id:s.id, name:s.name, cls:s.cls, key:key}, sigBefore, function(){
+        /* It is in the record, but the app never received the entry ID, so
+           there is nothing for Undo to target. Say so rather than showing a
+           button that would fail. */
+        S.done++;
+        S.lastEntry=null;
+        document.getElementById('dWhat').textContent =
+          s.name + ' — ' + S.selected.map(labelFor).join(', ');
+        document.getElementById('btnUndo').style.display='none';
+        go('done');
+        say('mOff','');
+        say('mDone','Saved after all — the connection dropped before the app could say so. ' +
+            'Undo is not available for this one; take it back from Entered this session ' +
+            'on the front screen instead.','warn');
+      });
+    });
+}
+function undoLast(){
+  if (!S.lastEntry) return;
+  var entry=S.lastEntry;
+  undoEntries(entry.entryIds, function(removed, refused){
+    if (!removed.length){ alert((refused[0] && refused[0].why) || 'That could not be undone.'); return; }
+    recomputeOpenAfterUndo(entry);
+    S.recent=S.recent.filter(function(r){ return r!==S.recent[0] || false; });
+    S.recent=S.recent.filter(function(r){ return (r.entryIds||[])[0] !== entry.entryIds[0]; });
+    S.lastEntry=null; S.done=Math.max(0,S.done-1);
+    document.getElementById('btnUndo').style.display='none';
+    document.getElementById('dWhat').textContent = refused.length
+      ? removed.length + ' removed. ' + refused.length + ' could not be taken back.'
+      : 'Removed. Nothing was recorded for this student.';
+  });
+}
+
+/* ── the card scanner ───────────────────────────────────────────────────
+   The guide box is 86% x 72% of a 4:3 viewfinder, which works out at almost
+   exactly the proportions of an ID card. The photo is CROPPED to that box
+   before being sent for reading — this matters more than it looks, because
+   OCR given a whole room performs far worse than OCR given just a card.
+   ───────────────────────────────────────────────────────────────────── */
+var CARD = { x:.07, y:.14, w:.86, h:.72 };
+var stream=null;
+
+function goScan(){
+  go('scan');
+  startCamera();
+}
+function leaveScan(){
+  stopCamera();
+  go('find');
+  setTimeout(function(){ document.getElementById('q').focus(); },160);
+}
+function startCamera(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    say('mScan','This browser will not give the app a camera. Type the name instead.','warn'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment',
+      width:{ideal:1920}, height:{ideal:1440} } })
+    .then(function(st){ stream=st; var v=document.getElementById('cam'); v.srcObject=st; v.play(); })
+    .catch(function(){
+      say('mScan','No camera access. Check the browser has permission, or type the name instead.','warn');
+    });
+}
+function stopCamera(){
+  if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; }
+  var v=document.getElementById('cam'); if (v) v.srcObject=null;
+  var busy=document.getElementById('vfBusy'); if (busy) busy.classList.remove('on');
+  var btn=document.getElementById('btnShot'); if (btn) btn.disabled=false;
+}
+
+/** Crop the live frame down to just what is inside the guide box. */
+function croppedCard(){
+  var v=document.getElementById('cam'), c=document.getElementById('shot');
+  var nw=v.videoWidth, nh=v.videoHeight;
+  var bw=v.clientWidth, bh=v.clientHeight;
+  if (!nw || !bw) return null;
+
+  // object-fit:cover means part of the frame is off-screen; work out what is visible
+  var na=nw/nh, ba=bw/bh, visW, visH, visX, visY;
+  if (na > ba){ visH=nh; visW=visH*ba; visY=0; visX=(nw-visW)/2; }
+  else        { visW=nw; visH=visW/ba; visX=0; visY=(nh-visH)/2; }
+
+  var cx=Math.round(visX+visW*CARD.x), cy=Math.round(visY+visH*CARD.y);
+  var cw=Math.round(visW*CARD.w),      ch=Math.round(visH*CARD.h);
+
+  var MAX=1200, scale=Math.min(1, MAX/Math.max(cw,ch));
+  c.width=Math.round(cw*scale); c.height=Math.round(ch*scale);
+  c.getContext('2d').drawImage(v, cx, cy, cw, ch, 0, 0, c.width, c.height);
+  return c;
+}
+
+function capture(){
+  var c=croppedCard();
+  if (!c){ say('mScan','The camera is not ready yet — give it a second.','warn'); return; }
+  var b64=c.toDataURL('image/jpeg',.85).split(',')[1];
+  var btn=document.getElementById('btnShot'), busy=document.getElementById('vfBusy');
+  btn.disabled=true; busy.classList.add('on'); say('mScan','');
+  post('ocr',{base64:b64}).then(function(j){
+    btn.disabled=false; busy.classList.remove('on');
+    if (!j.ok){ say('mScan', j.error, 'warn'); return; }
+    stopCamera();
+    go('find');
+    handleOcr(j.text||'');
+  }).catch(function(e){ btn.disabled=false; busy.classList.remove('on'); say('mScan', e.message); });
+}
+/**
+ * Auto-advance only when the best match is BOTH good enough and clearly
+ * ahead of the runner-up. Otherwise show the choices. It never guesses.
+ */
+function handleOcr(text){
+  var lines=text.split(/[\n\r]+/).map(function(l){ return l.trim(); }).filter(function(l){ return l.length>2; });
+  var best=[], seen={};
+  lines.forEach(function(line){
+    search(line,5).forEach(function(h){
+      if (seen[h.st[0]]){ if (h.pct>seen[h.st[0]].pct) seen[h.st[0]].pct=h.pct; return; }
+      seen[h.st[0]]={st:h.st,pct:h.pct}; best.push(seen[h.st[0]]);
+    });
+  });
+  best.sort(function(a,b){ return b.pct-a.pct; });
+  if (!best.length){
+    document.getElementById('q').value=lines[0]||''; onSearch();
+    say('mFind','Could not read a name from that. Type it instead.','warn'); return;
+  }
+  var top=best[0].pct, second=best.length>1?best[1].pct:0;
+  if (top>=S.cfg.minScore && (top-second)>=S.cfg.minMargin){ chooseStudent(best[0].st); return; }
+  var box=document.getElementById('hits'); box.innerHTML='';
+  best.slice(0,6).forEach(function(h,i){ box.appendChild(hitButton(h.st, i + 1)); });
+  say('mFind','Not certain enough to pick one. Choose from these, or type the name.','warn');
+}
+
+/* ── recheck ────────────────────────────────────────────────────────── */
+/**
+ * Re-reads who is outstanding, without re-reading the roster.
+ *
+ * bootstrap works out the open list from the Log every time it is called and
+ * only the roster comes from the cache, so this is the cheap half of a login:
+ * another person's rechecks appear, and nobody pays for a fresh read of the
+ * Master Database.
+ */
+
+/* ── the two numbers ─────────────────────────────────────────────────────
+   history[studentKey][code] = {times, fails, noShows, trail, past[]}
+
+     times — how many times this student has been caught for this offence
+             this year. One Log row per occasion. A repeat-offender count.
+     fails — how many rechecks they failed in the case that is open NOW. It
+             starts again at zero when a new case opens, because "failed
+             three rechecks in September" and "caught for this twice this
+             year" are different facts.
+
+   Absent means nothing known — an unmigrated Log reports nothing rather
+   than breaking, and a brand new offence has nothing to report.
+   ─────────────────────────────────────────────────────────────────────── */
+function histFor(key, code){
+  var h = (S.history[key]||{})[code];
+  return h ? {times:h.times||0, fails:h.fails||0, noShows:h.noShows||0,
+              trail:h.trail||'', past:h.past||[]}
+           : {times:0, fails:0, noShows:0, trail:'', past:[]};
+}
+
+/* ── taking history back from the server ──────────────────────────────────
+   A recheck answers in one of two ways.
+
+   The full answer replaces what we hold. But the fast recheck — the one that
+   touches only the rows it needs — deliberately never reads the closed rows,
+   so it cannot know how many TIMES a student has been caught, or what their
+   past cases were. It says so, by marking its history partialHistory, and
+   sends back only the three things it does know: fails, no-shows, trail.
+
+   Overwriting the rest with zeros would turn a 4th-time offender into a
+   first-timer on screen. So a patch is merged, not assigned.
+   ─────────────────────────────────────────────────────────────────────── */
+/* ── ONE STUDENT'S PAST, FOLDED BY CATEGORY ────────────────────────────────
+   groomPeek returns her grooming rows for the year, one per offence. The
+   screens want it the other way round — per category, so a pill can say "3rd
+   time, 2 not fixed" beside the thing being looked at — so the folding happens
+   here, once.
+
+   THE OLD APP GOT THIS INSIDE bootstrap, for the whole school, on every
+   sign-in. It is now fetched for ONE student when somebody is standing in front
+   of her, which is the only moment it means anything. */
+function foldHistory(j){
+  var by = {};
+  (j.history||[]).forEach(function(h){
+    var c = h.category;
+    if (!by[c]) by[c] = { times:0, fails:0, noShows:0, trail:'', past:[] };
+    by[c].times++;
+    by[c].fails   += (h.attempts||0) - (h.fixed ? 1 : 0);
+    by[c].noShows += (h.noShows||0);
+    by[c].past.push({ date:h.date, fixed:h.fixed, open:h.open });
+  });
+  return by;
+}
+
+/* Fetches one student's record if it is not already held. Never blocks a
+   screen: the pills are context, and a screen that will not draw without them
+   is worse than a screen that draws without them. */
+function ensureHistory(who, then){
+  var key = openKeyFor(who);
+  if (S.history[key]) { if (then) then(); return; }
+  post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
+    .then(function(j){
+      if (j && j.ok) S.history[key] = foldHistory(j);
+      if (then) then();
+    })
+    .catch(function(){ if (then) then(); });
+}
+
+function mergeHistory(key, j){
+  if (!j || !j.history) return;
+  S.history[key] = foldHistory(j);
+}
+
+function worstTimes(key, codes){
+  var n=0; codes.forEach(function(c){ var t=histFor(key,c).times; if (t>n) n=t; }); return n;
+}
+function worstFail(key, codes){
+  var n=0; codes.forEach(function(c){ var f=histFor(key,c).fails; if (f>n) n=f; }); return n;
+}
+function worstNoShow(key, codes){
+  var n=0; codes.forEach(function(c){ var x=histFor(key,c).noShows; if (x>n) n=x; }); return n;
+}
+
+/**
+ * Tier by depth, per the severity rule: 5 or more is the top of the scale,
+ * and the scale starts at 2. THE COLOUR TRACKS TIMES CAUGHT, not failed
+ * rechecks — because that is what the same colours mean on a printed
+ * latecoming view, and somebody reading both should not have to hold two
+ * meanings for one red.
+ */
+function tierFor(n){ return n>=5?5:(n>=2?n:0); }
+
+function ordinal(n){
+  var s=['th','st','nd','rd'], v=n%100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+/**
+ * The pills on ONE offence, on the student's own screen. The counts live
+ * here and nowhere else on the row — repeating "failed 2×" underneath as
+ * well was a whole wrapped line saying what the pill already said.
+ */
+function pillsForOffence(h){
+  return pillsFor(h.times, h.fails, h.noShows);
+}
+
+/**
+ * The last four entries of the trail, and a leading ellipsis if there were
+ * more. The full history lives in the sheet; standing in front of a student,
+ * what matters is the recent past, and eight dates wrapping over four lines
+ * is not read at all.
+ */
+function shortTrail(t){
+  var parts=String(t||'').split(' · ').filter(Boolean);
+  if (parts.length<=4) return parts.join(' · ');
+  return '… ' + parts.slice(-4).join(' · ');
+}
+
+/** What happened the previous time — or times — they were caught for this. */
+function pastLine(h){
+  if (!h.past.length) return '';
+  var last = h.past[h.past.length-1];
+  if (h.past.length === 1){
+    return 'Previously ' + last.from + ', cleared ' + last.to +
+           (last.fails ? ' after ' + last.fails + ' failed recheck' + (last.fails>1?'s':'')
+                       : ' first time');
+  }
+  return h.past.length + ' earlier cases · the last cleared ' + last.to;
+}
+
+/**
+ * The pills a row carries: how often they have been caught, how stubbornly,
+ * and how often they simply did not turn up.
+ *
+ * Only the first wears the severity scale. Failed rechecks are quiet grey —
+ * a fact, not a tier. A no-show wears the plain follow-up red, because it is
+ * the one that stops you doing anything at all about them.
+ */
+function pillsFor(times, fails, noShows){
+  var out='';
+  if (times>=2) out += '<span class="flag t'+tierFor(times)+'">'+ordinal(times)+' time</span>';
+  if (fails)    out += '<span class="flag t1">failed '+fails+'×</span>';
+  if (noShows)  out += '<span class="flag">no-show '+noShows+'×</span>';
+  return out ? '<span class="flags">'+out+'</span>' : '';
+}
+
+function refreshRecheck(){
+  var b=document.getElementById('btnRcRefresh');
+  b.disabled=true; b.textContent='⋯';
+  post('groomOpen',{}).then(function(j){
+    b.disabled=false; b.innerHTML='↻';
+    if (!j.ok){ say('mRc', j.error); return; }
+    applyOpen(j.rows);
+    S.loadedAt=j.serverTime||S.loadedAt;
+    var before=S.rcList.length;
+    openRecheck();
+    var after=S.rcList.length;
+    say('mRc', after===before ? 'Up to date.'
+        : 'Updated — ' + after + (after===1?' student outstanding.':' students outstanding.'), 'ok');
+  }).catch(function(e){
+    b.disabled=false; b.innerHTML='↻'; say('mRc', e.message);
+  });
+}
+
+/* Opening the screen fetches the list if it has not been fetched. The old app
+   could draw it straight from bootstrap; here the first look costs one read,
+   and every look after that is the refresh button. */
+function goRecheck(){
+  if (S.rcFetched) { openRecheck(); return; }
+  go('loading');
+  document.getElementById('loadMsg').textContent = 'Finding who is still owed a look';
+  post('groomOpen',{}).then(function(j){
+    if (!j.ok){ go('home', true); say('mHome', j.error); return; }
+    applyOpen(j.rows);
+    S.rcFetched = true;
+    openRecheck();
+  }).catch(function(e){ go('home', true); say('mHome', e.message); });
+}
+
+function openRecheck(){
+  var q=document.getElementById('rcQ');
+  if (q && current!=='recheck') q.value='';
+  var byId={}; S.students.forEach(function(st){ byId[st[0]]=st; });
+  S.rcList=Object.keys(S.open).map(function(key){
+    var st=byId[key], codes=S.open[key];
+    if (st) return {key:key,id:st[0],name:st[1],cls:st[2],gender:st[3]||'',codes:codes};
+    var parts=key.replace(/^~/,'').split('|');
+    return {key:key,id:'',name:parts[1]||key,cls:parts[0]||'',gender:'',codes:codes};
+  });
+  document.getElementById('rcCount').textContent =
+    S.rcList.length + (S.rcList.length===1 ? ' student outstanding' : ' students outstanding');
+  say('mRc',''); paintRecheck(); go('recheck');
+}
+function setRcMode(m){
+  S.rcMode=m;
+  ['segClass','segPri'].forEach(function(id){ document.getElementById(id).classList.remove('on'); });
+  document.getElementById(m==='pri'?'segPri':'segClass').classList.add('on');
+  paintRecheck();
+}
+/* ── which cohort a class belongs to ─────────────────────────────────────
+   A class code carries its INTAKE year in the first two digits: 26S06 is a
+   2026 intake. In academic year 2026 that is JC1; a 2025 intake is JC2. So
+   it corrects itself every January with nothing to maintain.
+
+   Two mistakes have been made here before and neither is repeated: the
+   prefix is the year they ENTERED, not the year they leave, and there is no
+   hardcoded year anywhere — a check like startsWith('25') is right for
+   exactly one academic year and silently wrong forever after.
+
+   The year comes from the server when it is offered, because a phone with
+   the wrong date should not be able to reorder the list. If an older
+   deployment does not send it, the phone's own year is the fallback.
+   ─────────────────────────────────────────────────────────────────────── */
+function academicYear(){
+  return Number(S.cfg && S.cfg.academicYear) || new Date().getFullYear();
+}
+
+function cohortOf(cls){
+  var m = /^(\d{2})/.exec(String(cls || '').trim());
+  if (!m) return 'Unsorted';
+  var diff = academicYear() - (2000 + parseInt(m[1], 10));
+  if (diff === 0) return 'JC1';
+  if (diff === 1) return 'JC2';
+  return 'Unsorted';
+}
+
+var COHORT_ORDER = ['JC1', 'JC2', 'Unsorted'];
+
+/** Name or class, anywhere in it — you are scanning a list you can see. */
+function rcMatches(r, q){
+  if (!q) return true;
+  return String(r.name).toUpperCase().indexOf(q) !== -1 ||
+         String(r.cls).toUpperCase().indexOf(q) !== -1;
+}
+
+function paintRecheck(){
+  var box=document.getElementById('rcList'); box.innerHTML='';
+  if (!S.rcList.length){ box.innerHTML='<p class="lede">Nothing outstanding. Everybody is clear.</p>'; return; }
+
+  var q=(document.getElementById('rcQ').value||'').trim().toUpperCase();
+  var list=S.rcList.filter(function(r){ return rcMatches(r,q); });
+
+  if (!list.length){
+    box.innerHTML='<p class="lede">Nobody outstanding matches that.</p>';
+    return;
+  }
+  /* While filtering, the class group headings are noise — every row already
+     says the class, and there are only a handful of rows left. */
+  if (q){
+    list.sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
+    list.forEach(function(r){ box.appendChild(rcButton(r,true)); });
+    return;
+  }
+  if (S.rcMode==='pri'){
+    /* Most-failed first. Somebody who has been back three times and still
+       has not sorted it is the one to chase, ahead of somebody with two
+       fresh offences and no history. */
+    /* Most-caught first, then the ones who do not turn up, then the ones
+       who turn up and still have not sorted it. A student you cannot get in
+       front of is the hardest to do anything about. */
+    list.sort(function(a,b){
+      return worstTimes(b.key,b.codes)-worstTimes(a.key,a.codes)
+          || worstNoShow(b.key,b.codes)-worstNoShow(a.key,a.codes)
+          || worstFail(b.key,b.codes)-worstFail(a.key,a.codes)
+          || b.codes.length-a.codes.length
+          || String(a.name).localeCompare(String(b.name));
+    });
+    list.forEach(function(r){ box.appendChild(rcButton(r,true)); });
+    return;
+  }
+  list.sort(function(a,b){ return String(a.cls).localeCompare(String(b.cls)) || String(a.name).localeCompare(String(b.name)); });
+
+  /* Cohort, then class, then student. Only cohorts that actually have
+     somebody outstanding get a heading — an empty JC2 heading would be a
+     line saying nothing. */
+  COHORT_ORDER.forEach(function(cohort){
+    var inCohort = list.filter(function(r){ return cohortOf(r.cls) === cohort; });
+    if (!inCohort.length) return;
+
+    var ch=document.createElement('div'); ch.className='cohorthead';
+    ch.textContent = cohort === 'Unsorted' ? 'Class not recognised' : cohort;
+    box.appendChild(ch);
+
+    var currentCls=null;
+    inCohort.forEach(function(r){
+      if (r.cls!==currentCls){
+        currentCls=r.cls;
+        var h=document.createElement('div'); h.className='grouphead';
+        h.textContent=currentCls||'No class'; box.appendChild(h);
+      }
+      box.appendChild(rcButton(r,false));
+    });
+  });
+}
+function rcButton(r, showClass){
+  var times=worstTimes(r.key, r.codes), fails=worstFail(r.key, r.codes);
+  var noShows=worstNoShow(r.key, r.codes);
+  var tier=tierFor(times);
+  var b=document.createElement('button');
+  b.className='choice' + (tier ? ' tier'+tier : '');
+  b.innerHTML='<span class="key">·</span><span class="txt"><b></b><span></span></span>' +
+    pillsFor(times, fails, noShows);
+  b.querySelector('b').textContent=r.name;
+  b.querySelector('.txt span').textContent=(showClass ? r.cls+' · ' : '') + r.codes.map(labelFor).join(', ');
+  b.onclick=function(){ openRecheckOne(r,r.codes,'recheck'); };
+  return b;
+}
+function copyList(){
+  var list=S.rcList.slice().sort(function(a,b){
+    return String(a.cls).localeCompare(String(b.cls)) || String(a.name).localeCompare(String(b.name)); });
+  var text='Grooming recheck — '+list.length+' student(s)\n\n' +
+    list.map(function(r){ return r.cls+'  '+r.name+'  —  '+r.codes.map(labelFor).join(', '); }).join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text)
+      .then(function(){ say('mRc','Copied. Paste it wherever you need it.','ok'); })
+      .catch(function(){ say('mRc','Could not copy automatically on this device.','warn'); });
+  } else say('mRc','This browser will not let the app copy for you.','warn');
+}
+function openRecheckOne(student, codes, from){
+  S.rcStudent={id:student.id,name:student.name,cls:student.cls,gender:student.gender||'',
+               key:student.key||openKeyFor(student),codes:codes};
+  if (from) S.rcFrom = from;
+  S.rcFixed=[];
+  S.rcNew=[];
+  document.getElementById('rName').textContent=student.name;
+  document.getElementById('rCls').textContent=student.cls;
+  say('mRcOne','');
+  /* These are context, not a control. The decision is Pass or Fail below;
+     tapping an offence here would be a second, competing answer. */
+  var box=document.getElementById('rCats'); box.innerHTML='';
+  codes.forEach(function(code,i){
+    var h=histFor(S.rcStudent.key, code), tier=tierFor(h.times);
+    var d=document.createElement('div');
+    d.className='choice flat' + (tier ? ' tier'+tier : '');
+    d.innerHTML='<span class="key"></span><span class="txt"><b></b></span>' +
+      pillsForOffence(h);
+    d.querySelector('.key').textContent=String(i+1);
+    d.querySelector('b').textContent=labelFor(code);
+    var txt=d.querySelector('.txt');
+    if (h.trail){
+      var p=document.createElement('p'); p.className='trail';
+      p.textContent=shortTrail(h.trail);
+      txt.appendChild(p);
+    }
+    var pl=pastLine(h);
+    if (pl){
+      var p2=document.createElement('p'); p2.className='trail past';
+      p2.textContent=pl; txt.appendChild(p2);
+    }
+    box.appendChild(d);
+  });
+  go('rcone');
+}
+
+/**
+ * The categories this student does NOT already have open, worded for their
+ * gender. Anything already open is left out on purpose: it is on the list
+ * above, and offering it twice on one screen would be two answers to the
+ * same question.
+ */
+function offerableFor(gender, exclude){
+  return S.cats.filter(function(c){
+    return labelForStudent(c, gender) && exclude.indexOf(c.code) === -1;
+  });
+}
+
+function drawNewOffences(student, openCodes){
+  var box=document.getElementById('rNew');
+  var wrap=document.getElementById('rNewWrap');
+  box.innerHTML='';
+  var offer=offerableFor(student.gender, openCodes);
+  if (!offer.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  offer.forEach(function(c,i){
+    var b=document.createElement('button'); b.className='choice';
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(i+1);
+    b.querySelector('b').textContent=labelForStudent(c, student.gender);
+    b.onclick=function(){
+      var k=S.rcNew.indexOf(c.code);
+      if (k===-1){ S.rcNew.push(c.code); b.classList.add('sel'); }
+      else { S.rcNew.splice(k,1); b.classList.remove('sel'); }
+    };
+    box.appendChild(b);
+  });
+}
+/* ── the recheck decision ───────────────────────────────────────────────
+   Pass or Fail, because that is the question being asked at the front: did
+   this student sort themselves out? Tapping individual offences was the old
+   shape, and it had a trap — a student with one outstanding offence who had
+   NOT fixed it meant tapping nothing, which read as "nothing was marked" and
+   refused to save. Fail is now an answer in itself.
+   ─────────────────────────────────────────────────────────────────────── */
+function rcPass(){
+  var r=S.rcStudent;
+  S.rcNew=[];                      /* a pass is one tap, and stays one tap */
+  saveRecheck(r.codes.slice(), [], document.getElementById('btnPass'), 'Pass — all fixed');
+}
+
+function rcFail(){
+  var r=S.rcStudent;
+  S.failStill = r.codes.slice();          // everything still wrong, until untapped
+  S.rcNew = [];
+  document.getElementById('fWho').textContent = r.name + ' · ' + r.cls;
+  document.getElementById('fStillHead').textContent = r.codes.length > 1
+    ? 'Still not fixed — untap anything they have sorted'
+    : 'Still not fixed';
+  say('mFail','');
+  var box=document.getElementById('fCats'); box.innerHTML='';
+  r.codes.forEach(function(code,i){
+    var b=document.createElement('button'); b.className='choice sel';
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(i+1);
+    b.querySelector('b').textContent=labelFor(code);
+    b.onclick=function(){
+      var k=S.failStill.indexOf(code);
+      if (k===-1){ S.failStill.push(code); b.classList.add('sel'); }
+      else { S.failStill.splice(k,1); b.classList.remove('sel'); }
+    };
+    box.appendChild(b);
+  });
+  drawNewOffences(r, r.codes);
+  go('fail');
+}
+
+function submitFail(){
+  var r=S.rcStudent, still=S.failStill.slice();
+  if (!still.length && !S.rcNew.length){
+    say('mFail','Nothing is ticked, so they have fixed everything. Go back and tap Pass instead.','warn');
+    return;
+  }
+  var resolved=r.codes.filter(function(c){ return still.indexOf(c)===-1; });
+  saveRecheck(resolved, still, document.getElementById('btnFailSave'), 'Save');
+}
+
+/** One place that talks to the server, so Pass and Fail cannot drift apart. */
+function saveRecheck(resolved, stillOpen, btn, btnLabel){
+  var r=S.rcStudent, added=S.rcNew.slice();
+  var sigBefore=stateSig(r.key), where=(current==='fail'?'mFail':'mRcOne');
+  btn.disabled=true; btn.textContent='Saving…';
+  slowNote(where, true);
+  /* ONE CALL, NOT ONE PER CATEGORY. Four POSTs over this deployment is four
+     chances to lose a reply, and a half-applied recheck — two marked fixed, one
+     lost, nothing on screen saying so — is the worst outcome available. The
+     server validates the whole batch before writing any of it. */
+  post('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
+                  fixed:entriesFor(r.key,resolved),
+                  notFixed:entriesFor(r.key,stillOpen),
+                  newCategories:added, by:S.who})
+    .then(function(j){
+      btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
+      if (!j.ok){ say(where, j.error); return; }
+      var msg=r.name+' — ';
+      msg += stillOpen.length ? stillOpen.length+' still open' : 'all clear';
+      if (resolved.length) msg += ', '+resolved.length+' cleared';
+      if (j.added && j.added.length) msg += ', '+j.added.length+' new';
+      /* A SECOND FAIL IS A NEW OFFENCE AND THE SCREEN SAYS SO. It is the moment
+         the ladder moves, and somebody standing there should know it happened
+         rather than find out from a worklist a fortnight later. */
+      if (j.raised && j.raised.length){
+        msg += '. ' + (j.raised.length===1 ? 'One counts again' : j.raised.length+' count again') +
+               ' — not fixed after two looks';
+      }
+      if (j.duplicates && j.duplicates.length){
+        msg += '. Already recorded today for ' + j.duplicates.map(labelFor).join(', ') +
+               ', so that was not counted again';
+      }
+      refreshOpenAfterSave(r, j, msg, stillOpen.length ? 'warn' : 'ok');
+    })
+    .catch(function(e){
+      btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
+      verifySave(e, where, r, sigBefore, function(){
+        openRecheck();
+        say('mRc', r.name + ' saved after all — the connection dropped before ' +
+            'the app could say so.', 'ok');
+      });
+    });
+}
+
+/* ── fixing a mistake ───────────────────────────────────────────────────
+   Different from a recheck, and deliberately a separate screen. A recheck
+   says the student fixed it; this says we wrote down the wrong thing. The
+   first closes a row and keeps it; this removes it, because a category the
+   student never had should not sit in their history at all.
+   ─────────────────────────────────────────────────────────────────────── */
+function openEdit(){
+  var r=S.rcStudent;
+  S.edRemove=[]; S.edAdd=[];
+  document.getElementById('eName').textContent=r.name;
+  document.getElementById('eCls').textContent=r.cls;
+  say('mEdit','');
+
+  var wrong=document.getElementById('eWrong'); wrong.innerHTML='';
+  r.codes.forEach(function(code,i){
+    var b=document.createElement('button'); b.className='choice';
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(i+1);
+    b.querySelector('b').textContent=labelFor(code);
+    b.onclick=function(){
+      var k=S.edRemove.indexOf(code);
+      if (k===-1){ S.edRemove.push(code); b.classList.add('sel'); }
+      else { S.edRemove.splice(k,1); b.classList.remove('sel'); }
+    };
+    wrong.appendChild(b);
+  });
+
+  var right=document.getElementById('eRight'); right.innerHTML='';
+  var offer=offerableFor(r.gender, r.codes);
+  document.getElementById('eRightWrap').style.display = offer.length ? 'block' : 'none';
+  offer.forEach(function(c,i){
+    var b=document.createElement('button'); b.className='choice';
+    b.innerHTML='<span class="key"></span><span class="txt"><b></b></span>';
+    b.querySelector('.key').textContent=String(i+1);
+    b.querySelector('b').textContent=labelForStudent(c, r.gender);
+    b.onclick=function(){
+      var k=S.edAdd.indexOf(c.code);
+      if (k===-1){ S.edAdd.push(c.code); b.classList.add('sel'); }
+      else { S.edAdd.splice(k,1); b.classList.remove('sel'); }
+    };
+    right.appendChild(b);
+  });
+  go('edit');
+}
+
+function backFromEdit(){ openRecheckOne(S.rcStudent, S.rcStudent.codes, S.rcFrom); }
+
+function submitEdit(){
+  var r=S.rcStudent;
+  var remove=S.edRemove.slice(), add=S.edAdd.slice();
+  if (!remove.length && !add.length){ say('mEdit','Nothing to change.'); return; }
+  var b=document.getElementById('btnEdit');
+  b.disabled=true; b.textContent='Saving…';
+
+  /* ── A CORRECTION IS NOT A RECHECK, and the difference is the whole screen.
+     A recheck says the student fixed it. This says WE WROTE DOWN THE WRONG
+     THING, so the row goes rather than being closed — a category she never had
+     should not sit in her history at all.
+
+     ⚠️ AND IT CANNOT ALWAYS GO. Once an offence has been rechecked, deleting it
+     would orphan the recheck rows pointing at it, so the server refuses. That
+     is reported here rather than swallowed: the honest answer is "that one has
+     been looked at already, so it stays". */
+  undoEntries(entriesFor(r.key, remove), function(removed, refused){
+    function finish(msg, kind){
+      b.disabled=false; b.textContent='Save the correction';
+      post('groomOpen',{})
+        .then(function(o){ if (o && o.ok) applyOpen(o.rows); })
+        .catch(function(){})
+        .then(function(){ openRecheck(); say('mRc', msg, kind); });
+    }
+    var note = r.name + ' — ' + (removed.length ? removed.length + ' removed' : 'nothing removed');
+    if (refused.length) note += ', ' + refused.length + ' already rechecked so kept';
+
+    if (!add.length){ finish(note, refused.length ? 'warn' : 'ok'); return; }
+    post('groomSubmit',{ studentId:r.id, name:r.name, cls:r.cls,
+                         categories:add, by:S.who })
+      .then(function(j){
+        finish(note + (j && j.ok ? ', ' + (j.recorded||[]).length + ' added' : ', could not add'),
+               refused.length ? 'warn' : 'ok');
+      })
+      .catch(function(){ finish(note + ', could not add', 'warn'); });
+  });
+}
+
+function submitNoShow(){
+  var r=S.rcStudent, sigBefore=stateSig(r.key);
+  /* No student, nothing new to see — anything ticked below is discarded. */
+  S.rcNew=[];
+  /* EVERY OPEN OFFENCE AT ONCE, because she did not turn up at all — and each
+     is still recorded on its own row, so nothing has to be told that a no-show
+     costs no attempt. */
+  post('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
+                           noShow:entriesFor(r.key, r.codes), by:S.who})
+    .then(function(j){
+      if (!j.ok){ say('mRcOne', j.error); return; }
+      mergeHistory(r.key, j);
+      openRecheck();
+      say('mRc', r.name+' marked as not turning up. They go to the top of the list.','warn');
+    }).catch(function(e){
+      verifySave(e, 'mRcOne', r, sigBefore, function(){
+        openRecheck();
+        say('mRc', r.name + ' was marked as not turning up after all.', 'ok');
+      });
+    });
+}
+
+/* ── keyboard ───────────────────────────────────────────────────────────
+   Enter only. The numbers beside each row are there to be read, not typed,
+   so no key selects an offence or a student — a stray keystroke cannot
+   record anything. Nothing on screen advertises this; it is simply a
+   faster path for whoever finds it.
+   ───────────────────────────────────────────────────────────────────── */
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Enter') return;
+  var typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+
+  if (current==='login'){ doLogin(); e.preventDefault(); return; }
+  if (current==='find' && typing){
+    var first=document.querySelector('#hits .choice');
+    if (first){ first.click(); e.preventDefault(); }
+    return;
+  }
+  if (current==='confirm'){ proceed(); e.preventDefault(); return; }
+  if (current==='offences' && !typing){ submitCheck(); e.preventDefault(); return; }
+  if (current==='done'){ nextStudent(); e.preventDefault(); return; }
+  if (current==='rcone' && !typing){ submitRecheck(); e.preventDefault(); return; }
+});
+
+/* ── start ──────────────────────────────────────────────────────────── */
+/* Exposed for the automated checks only, exactly as the live latecoming screen
+   exposes its own. Reads nothing this page does not already show, and cannot
+   sign anybody in. */
+window.__scan = S;
+window.__scanGo = go;
+
+(function(){
+  document.getElementById('loginDate').textContent = dateLine();
+  try{
+    var t=sessionStorage.getItem(TOKEN_KEY), w=sessionStorage.getItem(WHO_KEY);
+    if (t && w){ S.token=t; S.who=w; bootstrap(false); return; }
+  }catch(e){}
+  document.getElementById('bar').style.width='0%';
+})();
+</script>
+</body>
+</html>
