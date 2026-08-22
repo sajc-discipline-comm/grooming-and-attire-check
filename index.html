@@ -1282,15 +1282,28 @@ function hitButton(st, key){
 /* ── the loop ───────────────────────────────────────────────────────── */
 function startLoop(){ go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
 function nextStudent(){ S.student=null; S.selected=[]; go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
-/* ⚠️ GENDER IS st[4], NOT st[3]. The tracker's bootstrap sends
-   [id, name, class, INDEX NUMBER, gender]; the old grooming project's sent
-   [id, name, class, gender]. Reading the old position gave every student a
-   gender of "7" — which is not M or F, so labelForStudent fell through to the
-   generic name and every category drew for everybody, including the two that
-   apply to one gender only. Nothing errored; a boy was simply offered "Skirt
-   Length". Found by the browser test on 22 August 2026, which is the entire
-   reason that harness was built before this page was written. */
-function chooseStudent(st){ S.student={id:st[0],name:st[1],cls:st[2],gender:st[4]||''}; showConfirm(); }
+/* ⚠️ WHERE GENDER LIVES IN A ROSTER ROW — WRITTEN DOWN ONCE, HERE.
+   The tracker's bootstrap sends [id, name, class, INDEX NUMBER, gender]; the
+   old grooming project's sent [id, name, class, gender]. Reading the old
+   position gives every student a gender of "7" — which is not M or F, so
+   labelForStudent falls through to the generic name and every category draws
+   for everybody, including the two that apply to one gender only. Nothing
+   errors; a boy is simply offered "Skirt Length".
+
+   ⚠️ THIS WAS FOUND TWICE, WHICH IS THE ACTUAL LESSON. The browser harness
+   caught it in chooseStudent on 22 August 2026 and it was fixed THERE — and
+   left standing in openRecheck, which is the screen a teacher spends an entire
+   check on, and the one where the categories on offer are the whole point.
+   Kim found the second one the same day by saying how a check is really run:
+   the teachers split by gender and walk the line from both ends, so whoever
+   is holding the phone is looking at one gender all morning.
+
+   One roster row shape read in two places is one place too many. The position
+   is named here and nowhere else; if the roster ever changes shape again, this
+   line is the only thing that moves. */
+function genderOf(st){ return (st && st[4]) || ''; }
+
+function chooseStudent(st){ S.student={id:st[0],name:st[1],cls:st[2],gender:genderOf(st)}; showConfirm(); }
 function recordAnyway(typed){
   if (!confirm('Record "'+typed+'" without a Student ID?\n\nUse this only for a student who genuinely is not in the Master Database yet — a transfer whose roster import has not run. It shows amber in the sheet so it can be linked up later.')) return;
   var cls = prompt('Their class, if you know it:','')||'';
@@ -1714,7 +1727,7 @@ function openRecheck(){
   var byId={}; S.students.forEach(function(st){ byId[st[0]]=st; });
   S.rcList=Object.keys(S.open).map(function(key){
     var st=byId[key], codes=S.open[key];
-    if (st) return {key:key,id:st[0],name:st[1],cls:st[2],gender:st[3]||'',codes:codes};
+    if (st) return {key:key,id:st[0],name:st[1],cls:st[2],gender:genderOf(st),codes:codes};
     var parts=key.replace(/^~/,'').split('|');
     return {key:key,id:'',name:parts[1]||key,cls:parts[0]||'',gender:'',codes:codes};
   });
