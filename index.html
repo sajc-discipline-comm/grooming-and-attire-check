@@ -457,6 +457,7 @@ canvas{display:none}
 <!-- 6 · OFFENCES -->
 <section class="pane flow" id="pOffences">
   <p class="eyebrow" id="oWho"></p>
+  <div class="note warn" id="oToday" style="display:none"></div>
   <h2>Select Relevant Offences</h2>
   <div id="mOff"></div>
   <div id="cats" style="margin-top:16px"></div>
@@ -574,7 +575,7 @@ var S = {
      is recorded, which is BEFORE the recheck list has ever been fetched. Left
      undefined until then, the first save of the day died with "cannot set
      properties of undefined". */
-  entryFor:{}, openRow:{}, rcFetched:false,
+  entryFor:{}, openRow:{}, todayFor:{}, rcFetched:false,
   cfg:{minScore:.72,minMargin:.15,graceDays:3},
   student:null, selected:[], lastEntry:null, recent:[], done:0,
   history:{}, rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[], failStill:[],
@@ -882,8 +883,7 @@ function verifySave(err, where, who, sigBefore, onLanded){
   post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
     .then(function(j){
       if (!j.ok){ say(where, err.message + ' Could not check either — try again.'); return; }
-      if (j.open && j.open.length) S.open[who.key] = j.open; else delete S.open[who.key];
-      S.history[who.key] = j.history || {};
+      applyPeek(who.key, j);
 
       if (stateSig(who.key) !== sigBefore){
         say(where,'');
@@ -1303,7 +1303,58 @@ function nextStudent(){ S.student=null; S.selected=[]; go('find'); setTimeout(fu
    line is the only thing that moves. */
 function genderOf(st){ return (st && st[4]) || ''; }
 
-function chooseStudent(st){ S.student={id:st[0],name:st[1],cls:st[2],gender:genderOf(st)}; showConfirm(); }
+/* ⚠️ THE PEEK FIRES ON PICK AND IS NEVER WAITED FOR.
+   Kim, 22 August 2026: several teachers, split by gender, walk the line from
+   both ends — and the two ends MEET IN THE MIDDLE, which is where the same
+   girl reaches two phones a minute apart. The second teacher used to walk the
+   whole flow and be refused at the save, standing in front of her.
+
+   IT MUST NOT ADD A WAIT. Every request to this deployment costs about 2.5
+   seconds before it does anything, and a pause between tapping a student and
+   seeing her categories is what makes people stop using an app at a queue. So
+   the screen draws immediately from what is already held, the peek goes in
+   parallel, and the note appears when it lands — which is almost always before
+   anybody has finished reading the name. */
+function chooseStudent(st){
+  S.student={id:st[0],name:st[1],cls:st[2],gender:genderOf(st)};
+  showConfirm();
+  peekAhead(S.student);
+}
+
+function peekAhead(who){
+  var key = openKeyFor(who);
+  post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
+    .then(function(j){
+      if (!j || !j.ok) return;
+      applyPeek(key, j);
+      /* Only repaint the screens this can change, and only if we are still on
+         one of them — somebody who has already moved on must not have the page
+         jump under them. */
+      if (current === 'confirm' && S.student && openKeyFor(S.student) === key) showConfirm();
+      else if (current === 'offences' && S.student && openKeyFor(S.student) === key) paintToday();
+    })
+    .catch(function(){});   /* context, never a blocker */
+}
+
+/* WHAT SOMEBODY ELSE ALREADY DID TO HER THIS MORNING, IN WORDS.
+   ⚠️ THE OFFENCE, NEVER THE CODE. Kim, 22 August 2026: "remember people don't
+   know what is c1. specify the offence." The server sends the label for
+   exactly this reason; printing r.code here would undo it. */
+function todayNote(key){
+  var mine = S.todayFor[key] || [];
+  if (!mine.length) return '';
+  return 'Already recorded today: ' + mine.map(function(x){
+    return x.label + (x.by ? ' (' + x.by + (x.time ? ', ' + x.time : '') + ')' : '');
+  }).join(' · ');
+}
+
+function paintToday(){
+  var box = document.getElementById('oToday');
+  if (!box) return;
+  var txt = S.student ? todayNote(openKeyFor(S.student)) : '';
+  box.textContent = txt;
+  box.style.display = txt ? 'block' : 'none';
+}
 function recordAnyway(typed){
   if (!confirm('Record "'+typed+'" without a Student ID?\n\nUse this only for a student who genuinely is not in the Master Database yet — a transfer whose roster import has not run. It shows amber in the sheet so it can be linked up later.')) return;
   var cls = prompt('Their class, if you know it:','')||'';
@@ -1317,6 +1368,12 @@ function showConfirm(){
   document.getElementById('cCls').textContent=s.cls+(s.gender?' · '+s.gender:'');
   var openCodes=S.open[openKeyFor(s)]||[], box=document.getElementById('cOpen');
   box.innerHTML='';
+  var todayTxt = todayNote(openKeyFor(s));
+  if (todayTxt){
+    var td=document.createElement('div'); td.className='note warn';
+    td.textContent=todayTxt;
+    box.appendChild(td);
+  }
   if (openCodes.length){
     var d=document.createElement('div'); d.className='note warn';
     d.textContent='Already open: '+openCodes.map(labelFor).join(', ');
@@ -1351,6 +1408,7 @@ function labelForStudent(cat,gender){
 function showOffences(){
   var s=S.student; S.selected=[];
   document.getElementById('oWho').textContent = s.name + ' · ' + s.cls;
+  paintToday();
   document.getElementById('remarks').value=''; say('mOff','');
   var box=document.getElementById('cats'); box.innerHTML=''; var n=0;
   S.cats.forEach(function(c){
@@ -1613,6 +1671,40 @@ function ensureHistory(who, then){
 function mergeHistory(key, j){
   if (!j || !j.history) return;
   S.history[key] = foldHistory(j);
+}
+
+/* ── WHAT A PEEK REPLY BECOMES, IN ONE PLACE ───────────────────────────────
+   groomPeek answers in OFFENCE ROWS. The screens hold something different:
+   S.open[key] is a list of CATEGORY CODES, and S.history[key] is an object
+   KEYED BY CODE, which is what foldHistory produces.
+
+   ⚠️ WHY THIS IS A FUNCTION AND NOT THREE LINES REPEATED. verifySave used to
+   assign the raw arrays — S.open[key] = j.open, S.history[key] = j.history —
+   so after a dropped reply the page held row objects where every other line
+   expected strings, and a history array that histFor could not index. A
+   fourth-time offender drew as a first-timer.
+
+   AND IT BROKE THE ONE DECISION verifySave EXISTS TO MAKE. That function
+   compares stateSig before and after to work out whether a save landed.
+   Computed over the wrong shapes the two could hardly ever match, so it
+   reported LANDED almost every time — including when nothing had been written.
+   Its own docblock says the dangerous direction is claiming nothing saved when
+   it did; this was the other direction, which loses an offence in silence.
+
+   Same lesson as genderOf above: one shape, read in more than one place, is a
+   shape that needs a name. 22 August 2026.
+   ─────────────────────────────────────────────────────────────────────── */
+function applyPeek(key, j){
+  if (!j || !j.ok) return;
+  var rows = j.open || [];
+  if (rows.length) S.open[key] = rows.map(function(o){ return o.category; });
+  else delete S.open[key];
+  rows.forEach(function(o){
+    S.entryFor[key + '|' + o.category] = o.entryId;
+    S.openRow[o.entryId] = o;
+  });
+  S.history[key] = foldHistory(j);
+  S.todayFor[key] = j.recordedToday || [];
 }
 
 function worstTimes(key, codes){
