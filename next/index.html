@@ -1052,6 +1052,36 @@ function entriesFor(key, codes){
   return out;
 }
 
+/* ── THE COUNT ON THE HOME SCREEN ─────────────────────────────────────────
+   ⚠️ FETCHED, NOT ASSUMED. paintHome counts S.open, and until 22 August 2026
+   nothing filled S.open in until the recheck list had been opened — which is
+   lazy, on the first tap. So a freshly opened app said "Nobody needs a
+   recheck." and "Recheck list · 0" every single time, whatever was actually
+   outstanding. Kim found it on the first morning she used the page.
+
+   IT IS NOT A RENDERING SLIP. The screen stated a fact it had never asked the
+   server for, and it stated the REASSURING one. Zero is exactly the answer
+   somebody acts on by going home.
+
+   It costs one read at startup, which is precisely what goRecheck's laziness
+   was written to avoid. That trade was wrong: the number appears on the home
+   screen AND on the button, so it is being asserted whether or not anybody has
+   fetched it — and the cheapest thing to do with a number you are going to
+   print is to know it.
+
+   Silent and failure-tolerant. If it does not come back, the screen keeps
+   whatever it had and the recheck list still fetches on tap, exactly as before.
+*/
+function refreshOpen(){
+  return post('groomOpen',{}).then(function(j){
+    if (!j || !j.ok) return;
+    applyOpen(j.rows);
+    S.rcFetched = true;
+    S.loadedAt = j.serverTime || S.loadedAt;
+    if (current === 'home') paintHome();
+  }).catch(function(){});
+}
+
 function bootstrap(force){
   var warm = force ? null : readBoot();
 
@@ -1067,6 +1097,7 @@ function bootstrap(force){
       say('mHome','');
       if (current === 'home') paintHome();
     }).catch(function(){});
+    refreshOpen();
     return;
   }
 
@@ -1078,6 +1109,7 @@ function bootstrap(force){
     document.getElementById('hdrSub').textContent = '· ' + S.who;
     say('mHome','');            /* whatever went wrong last time is over */
     go('home', true);
+    refreshOpen();
   }).catch(function(e){ go('home', true); say('mHome', e.message); });
 }
 function refreshAll(){ bootstrap(true); }
