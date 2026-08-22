@@ -352,15 +352,17 @@ canvas{display:none}
     </button>
   </div>
   <button class="btn wide" id="btnLogin" onclick="doLogin()">Sign in</button>
-  <!-- ⚠️ THE HELP LINK IS DELIBERATELY GONE, 22 August 2026. help.html documents
-       the OLD app — different screens, a different recheck flow — so from here it
-       would point at instructions for a different program. It was also BROKEN the
-       whole time this page lived at /next/: the link is relative, so it resolved
-       to /next/help.html, which never existed. Nobody reported it, which is worth
-       knowing about how much this link was used.
-
-       It comes back when there are instructions for THIS app. A missing link is a
-       small thing; a link to confidently wrong instructions is not. -->
+  <a class="btn plain wide" href="../help.html" target="_blank" rel="noopener">Click here for the help guide.</a>
+  <!-- ⚠️ THIS IS THE OLD APP, kept as the rollback and nothing else. It moved
+       here from the root on 22 August 2026 and it still writes to the OLD
+       grooming spreadsheet, which the Hub no longer reads. A check recorded
+       here does not reach the tracker. The one in daily use is one level up. -->
+  <p class="eyebrow" style="text-align:center;margin-top:14px;line-height:1.5">
+    ⚠️ This is the <strong>old</strong> grooming app, kept only so there is a way back.
+    Anything recorded here goes to the old spreadsheet and <strong>does not reach the
+    tracker</strong>.<br>
+    <a href="../" style="text-decoration:underline">Use the current one instead →</a>
+  </p>
 </section>
 
 <!-- 2 · LOADING -->
@@ -378,7 +380,7 @@ canvas{display:none}
   <div id="mHome"></div>
   <div class="stack">
     <button class="btn wide" onclick="startLoop()">Start checking</button>
-    <button class="btn quiet wide" id="btnRecheck" onclick="goRecheck()">Recheck list</button>
+    <button class="btn quiet wide" id="btnRecheck" onclick="openRecheck()">Recheck list</button>
   </div>
   <div id="recentWrap" style="display:none;margin-top:26px">
     <p class="eyebrow">Entered this session</p>
@@ -553,28 +555,10 @@ canvas{display:none}
 /* ═══════════════════════════════════════════════════════════════════════
    PASTE YOUR DEPLOYMENT URL HERE — the one ending in /exec
    ═══════════════════════════════════════════════════════════════════════ */
-/* ── THE NEW GROOMING APP ─────────────────────────────────────────────────
-   Everything this page records goes into the ATTENDANCE TRACKER's own 📋 Log,
-   as GROOM rows with the category in the Reason column — not into the grooming
-   spreadsheet. One book, one counting rule, one student ID.
-
-   THE OLD APP IS STILL LIVE at the root of this repo, against its own
-   deployment and its own book, and nothing here touches it. Cutover is moving
-   this file up one level; rollback is moving it back.
-
-   ⚠️ SO THE URL BELOW IS THE TRACKER'S, and it is the same one the Hub, the
-   gate scanner, the green slip page and the live screen already use. */
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbxm68iLB0wBy-goORwxBAK3ZySAGT4LHV-R4KfB00PGdXL8fu569vrvvUUpzxF8nrhyIw/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVEA2RhSz0U_LqgBeZ80A9969mhVaewgUnvzBEpvaA3K_NRRiQNwWF6OMzPg8WAx-C/exec';
 
 var S = {
   token:null, who:'', students:[], open:{}, cats:[],
-  /* ⚠️ DECLARED HERE, NOT CREATED BY applyOpen. The screens speak in category
-     codes and the server identifies an offence by its Log Entry ID, so this map
-     is the translation between them — and it is written to the moment anything
-     is recorded, which is BEFORE the recheck list has ever been fetched. Left
-     undefined until then, the first save of the day died with "cannot set
-     properties of undefined". */
-  entryFor:{}, openRow:{}, rcFetched:false,
   cfg:{minScore:.72,minMargin:.15,graceDays:3},
   student:null, selected:[], lastEntry:null, recent:[], done:0,
   history:{}, rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[], failStill:[],
@@ -879,7 +863,7 @@ function verifySave(err, where, who, sigBefore, onLanded){
      Log; bootstrap re-reads the whole Master Database across every intake
      tab when the cache is cold, so checking a save was costing more than
      the save it was checking. */
-  post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
+  post('peek', { studentId: who.id, name: who.name, cls: who.cls })
     .then(function(j){
       if (!j.ok){ say(where, err.message + ' Could not check either — try again.'); return; }
       if (j.open && j.open.length) S.open[who.key] = j.open; else delete S.open[who.key];
@@ -931,12 +915,12 @@ function doLogin(){
   if (!pw)  { say('mLogin','Enter the password.'); return; }
   var b = document.getElementById('btnLogin');
   b.disabled = true; b.textContent = 'Signing in…'; say('mLogin','');
-  rawPost({ action:'groomLogin', password:pw })
+  rawPost({ action:'login', password:pw })
     .then(function(j){
       b.disabled = false; b.textContent = 'Sign in';
       if (!j.ok) { say('mLogin', j.error || 'Could not sign in.'); return; }
       S.token = j.token; S.who = who;
-      try { sessionStorage.setItem(TOKEN_KEY, j.token); sessionStorage.setItem(WHO_KEY, who); } catch(e){}
+      try { sessionStorage.setItem('gt_token', j.token); sessionStorage.setItem('gt_who', who); } catch(e){}
       document.getElementById('pw').value = '';
       bootstrap(false);
     })
@@ -949,7 +933,7 @@ function doLogin(){
 
 function signOut(why){
   S.token=null; S.students=[]; S.open={}; S.recent=[]; S.done=0;
-  try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(WHO_KEY);
+  try { sessionStorage.removeItem('gt_token'); sessionStorage.removeItem('gt_who');
         sessionStorage.removeItem(CACHE_KEY); } catch(e){}
   document.getElementById('hdrSub').textContent='';
   document.getElementById('pw').type='password';
@@ -968,15 +952,7 @@ function signOut(why){
    background, so reopening costs nothing while the numbers still end up
    current within a second. A cold first sign-in still waits properly.
    ─────────────────────────────────────────────────────────────────────── */
-/* ⚠️ DIFFERENT KEYS FROM THE OLD APP, AND THIS IS NOT COSMETIC. Both pages are
-   served from the same GitHub Pages origin, so they share one sessionStorage.
-   Reusing `gt_token` would mean signing into either app handed the OTHER one a
-   token minted by a DIFFERENT server against a different secret — which
-   validates nowhere and reads on screen as "your session has expired" on an app
-   nobody has touched. */
-var CACHE_KEY = 'gt2_boot';
-var TOKEN_KEY = 'gt2_token';
-var WHO_KEY   = 'gt2_who';
+var CACHE_KEY = 'gt_boot';
 
 /* The version of WebApi.gs this app expects. If the deployment answers with
    anything else — or with nothing, meaning it predates the stamp — every
@@ -1002,7 +978,7 @@ function checkApiVersion(j){
 function saveBoot(j){
   try {
     sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-      at: Date.now(), students: j.students,
+      at: Date.now(), students: j.students, open: j.open, history: j.history,
       categories: j.categories, config: j.config, serverTime: j.serverTime
     }));
   } catch(e){ /* a full quota is not worth failing a sign-in over */ }
@@ -1019,75 +995,8 @@ function readBoot(){
 }
 
 function applyBoot(j){
-  S.students = j.students||[]; S.cats = j.categories||[];
+  S.students = j.students||[]; S.open = j.open||{}; S.history = j.history||{}; S.cats = j.categories||[];
   S.cfg = j.config||S.cfg; S.loadedAt = j.serverTime||'';
-}
-
-/* ── WHO IS STILL OWED A LOOK ──────────────────────────────────────────────
-   The old app got this inside bootstrap, as `open` keyed by student. The
-   tracker keeps it separate — groomOpen — because it is a different question
-   with a different lifetime: the roster changes once a term and this changes
-   every time somebody records anything.
-
-   IT ARRIVES AS OFFENCES AND IS FOLDED INTO STUDENTS HERE, so every screen
-   below this line works exactly as it did. What is new is `S.entryFor`: the
-   server now identifies an offence by its Log Entry ID rather than by student
-   and category, which is what lets two students with the same name and class
-   stop being the same record. The screens still speak in category codes; this
-   map is the translation, and it lives in one place. */
-function applyOpen(rows){
-  S.open = {}; S.entryFor = {}; S.openRow = {};
-  (rows||[]).forEach(function(r){
-    var key = r.studentId || ('~'+r.cls+'|'+r.name);
-    if (!S.open[key]) S.open[key] = [];
-    S.open[key].push(r.category);
-    S.entryFor[key + '|' + r.category] = r.entryId;
-    S.openRow[r.entryId] = r;
-  });
-}
-
-/* The entry IDs behind a student's category codes, for a call that has to name
-   offences. A code with no entry is DROPPED rather than sent as undefined —
-   the server would refuse the whole batch, which is right, but the cause would
-   be invisible. This cannot happen unless the list is stale, and if it does the
-   refresh button is the fix. */
-function entriesFor(key, codes){
-  var out = [];
-  (codes||[]).forEach(function(c){
-    var id = S.entryFor[key + '|' + c];
-    if (id) out.push(id);
-  });
-  return out;
-}
-
-/* ── THE COUNT ON THE HOME SCREEN ─────────────────────────────────────────
-   ⚠️ FETCHED, NOT ASSUMED. paintHome counts S.open, and until 22 August 2026
-   nothing filled S.open in until the recheck list had been opened — which is
-   lazy, on the first tap. So a freshly opened app said "Nobody needs a
-   recheck." and "Recheck list · 0" every single time, whatever was actually
-   outstanding. Kim found it on the first morning she used the page.
-
-   IT IS NOT A RENDERING SLIP. The screen stated a fact it had never asked the
-   server for, and it stated the REASSURING one. Zero is exactly the answer
-   somebody acts on by going home.
-
-   It costs one read at startup, which is precisely what goRecheck's laziness
-   was written to avoid. That trade was wrong: the number appears on the home
-   screen AND on the button, so it is being asserted whether or not anybody has
-   fetched it — and the cheapest thing to do with a number you are going to
-   print is to know it.
-
-   Silent and failure-tolerant. If it does not come back, the screen keeps
-   whatever it had and the recheck list still fetches on tap, exactly as before.
-*/
-function refreshOpen(){
-  return post('groomOpen',{}).then(function(j){
-    if (!j || !j.ok) return;
-    applyOpen(j.rows);
-    S.rcFetched = true;
-    S.loadedAt = j.serverTime || S.loadedAt;
-    if (current === 'home') paintHome();
-  }).catch(function(){});
 }
 
 function bootstrap(force){
@@ -1105,7 +1014,6 @@ function bootstrap(force){
       say('mHome','');
       if (current === 'home') paintHome();
     }).catch(function(){});
-    refreshOpen();
     return;
   }
 
@@ -1116,8 +1024,8 @@ function bootstrap(force){
     applyBoot(j); saveBoot(j);
     document.getElementById('hdrSub').textContent = '· ' + S.who;
     say('mHome','');            /* whatever went wrong last time is over */
+    checkApiVersion(j);
     go('home', true);
-    refreshOpen();
   }).catch(function(e){ go('home', true); say('mHome', e.message); });
 }
 function refreshAll(){ bootstrap(true); }
@@ -1146,70 +1054,20 @@ function paintHome(){
     list.appendChild(b);
   });
 }
-/* ── TAKING A CHECK BACK ───────────────────────────────────────────────────
-   ONE CHECK IS SEVERAL ROWS NOW — one per category — so undoing it is several
-   calls, and they can disagree: an offence that has already been rechecked
-   cannot be undone at all, deliberately, because deleting it would orphan the
-   recheck rows pointing at it.
-
-   SO THIS REPORTS WHAT ACTUALLY HAPPENED rather than assuming. Partial success
-   is a real outcome here and the screen says which ones went. */
-function undoEntries(ids, done){
-  var left = ids.length, removed = [], refused = [];
-  if (!left) { done(removed, refused); return; }
-  ids.forEach(function(id){
-    post('groomUndo',{entryId:id})
-      .then(function(j){ (j && j.ok ? removed : refused).push({id:id, why:j && j.error}); })
-      .catch(function(e){ refused.push({id:id, why:e.message}); })
-      .then(function(){ if (--left === 0) done(removed, refused); });
-  });
-}
-
 function removeRecent(entryId){
   if (!confirm('Remove that entry from the record?')) return;
-  var gone = S.recent.filter(function(r){ return (r.entryIds||[]).indexOf(entryId)>=0; })[0];
-  var ids = gone ? gone.entryIds : [entryId];
-  undoEntries(ids, function(removed, refused){
-    if (removed.length && gone){
-      S.recent = S.recent.filter(function(r){ return r !== gone; });
-      recomputeOpenAfterUndo(gone);
-      S.done = Math.max(0, S.done-1);
-    }
-    say('mHome', refused.length
-      ? removed.length + ' removed, ' + refused.length + ' could not be: ' +
-        (refused[0].why || 'already rechecked.')
-      : 'Removed.', refused.length ? 'warn' : 'ok');
-    paintHome();
-  });
+  post('undo',{entryId:entryId}).then(function(j){
+    if (!j.ok) { say('mHome', j.error); return; }
+    var gone = S.recent.filter(function(r){ return r.entryId===entryId; })[0];
+    S.recent = S.recent.filter(function(r){ return r.entryId!==entryId; });
+    if (gone) { recomputeOpenAfterUndo(gone); S.done = Math.max(0, S.done-1); }
+    say('mHome','Removed.','ok'); paintHome();
+  }).catch(function(e){ say('mHome', e.message); });
 }
 function recomputeOpenAfterUndo(entry){
-  (entry.codes||[]).forEach(function(c){ delete S.entryFor[entry.key+'|'+c]; });
   if (!S.open[entry.key]) return;
   S.open[entry.key] = S.open[entry.key].filter(function(c){ return entry.codes.indexOf(c)===-1; });
   if (!S.open[entry.key].length) delete S.open[entry.key];
-}
-
-/* ── AFTER A RECHECK, ASK RATHER THAN GUESS ────────────────────────────────
-   The old app patched its own copy of who-is-open from what it had just sent.
-   That works until the server does something the phone did not ask for — and
-   it now does exactly that: a second failed look RAISES A NEW OFFENCE, which
-   belongs on the list the phone is holding.
-
-   So the list is re-read. It costs one call at the end of a recheck, which is
-   not a moment anybody is waiting in a queue, and it means the screen cannot
-   drift from the sheet. If the re-read fails the local patch stands, because a
-   stale list is better than a blank one. */
-function refreshOpenAfterSave(r, j, msg, kind){
-  post('groomOpen',{})
-    .then(function(o){ if (o && o.ok) applyOpen(o.rows); })
-    .catch(function(){})
-    /* ⚠️ THE MESSAGE IS SET AFTER openRecheck, NOT BEFORE. openRecheck clears
-       mRc as it redraws — which is right, the old message belongs to the old
-       list — so a caller that says its piece first watches it vanish a second
-       later, once the re-read lands. The old app could say it first because it
-       redrew synchronously; this one asks the server, so the message has to
-       travel with the callback. */
-    .then(function(){ openRecheck(); if (msg) say('mRc', msg, kind); });
 }
 
 /* ── matching, all local ────────────────────────────────────────────── */
@@ -1282,15 +1140,7 @@ function hitButton(st, key){
 /* ── the loop ───────────────────────────────────────────────────────── */
 function startLoop(){ go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
 function nextStudent(){ S.student=null; S.selected=[]; go('find'); setTimeout(function(){ document.getElementById('q').focus(); },160); }
-/* ⚠️ GENDER IS st[4], NOT st[3]. The tracker's bootstrap sends
-   [id, name, class, INDEX NUMBER, gender]; the old grooming project's sent
-   [id, name, class, gender]. Reading the old position gave every student a
-   gender of "7" — which is not M or F, so labelForStudent fell through to the
-   generic name and every category drew for everybody, including the two that
-   apply to one gender only. Nothing errored; a boy was simply offered "Skirt
-   Length". Found by the browser test on 22 August 2026, which is the entire
-   reason that harness was built before this page was written. */
-function chooseStudent(st){ S.student={id:st[0],name:st[1],cls:st[2],gender:st[4]||''}; showConfirm(); }
+function chooseStudent(st){ S.student={id:st[0],name:st[1],cls:st[2],gender:st[3]||''}; showConfirm(); }
 function recordAnyway(typed){
   if (!confirm('Record "'+typed+'" without a Student ID?\n\nUse this only for a student who genuinely is not in the Master Database yet — a transfer whose roster import has not run. It shows amber in the sheet so it can be linked up later.')) return;
   var cls = prompt('Their class, if you know it:','')||'';
@@ -1366,24 +1216,19 @@ function submitCheck(){
   var key=openKeyFor(s), sigBefore=stateSig(key);
   b.disabled=true; b.textContent='Saving…';
   slowNote('mOff', true);
-  post('groomSubmit',{ studentId:s.id, name:s.name, cls:s.cls,
-    categories:S.selected, remarks:document.getElementById('remarks').value.trim(), by:S.who })
+  post('submit',{ studentId:s.id, name:s.name, cls:s.cls, gender:s.gender,
+    codes:S.selected, remarks:document.getElementById('remarks').value.trim(), by:S.who })
     .then(function(j){
       b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
       if (!j.ok){ say('mOff', j.error); return; }
-      /* ONE ROW PER CATEGORY, each with its own entry id, because each is its
-         own thing to fix and its own thing to recheck. */
-      var made=j.recorded||[];
-      var codes=made.map(function(x){ return x.category; });
+      var codes=j.openCodes||S.selected;
       S.open[key]=(S.open[key]||[]).concat(codes);
-      made.forEach(function(x){ S.entryFor[key+'|'+x.category]=x.entryId; });
-      S.lastEntry={entryIds:made.map(function(x){ return x.entryId; }),key:key,codes:codes};
-      S.recent.unshift({entryIds:S.lastEntry.entryIds,key:key,name:s.name,cls:s.cls,codes:codes,
+      S.lastEntry={entryId:j.entryId,key:key,codes:codes};
+      S.recent.unshift({entryId:j.entryId,key:key,name:s.name,cls:s.cls,codes:codes,
         what:codes.map(labelFor).join(', ')});
       S.recent=S.recent.slice(0,10); S.done++;
       document.getElementById('dWhat').textContent = s.name + ' — ' + codes.map(labelFor).join(', ') +
-        (j.duplicates && j.duplicates.length
-           ? ' · already recorded today: ' + j.duplicates.map(labelFor).join(', ') : '');
+        (j.skipped && j.skipped.length ? ' · already open: ' + j.skipped.join(', ') : '');
       document.getElementById('btnUndo').style.display='block';
       say('mDone','');
       go('done');
@@ -1410,17 +1255,14 @@ function submitCheck(){
 function undoLast(){
   if (!S.lastEntry) return;
   var entry=S.lastEntry;
-  undoEntries(entry.entryIds, function(removed, refused){
-    if (!removed.length){ alert((refused[0] && refused[0].why) || 'That could not be undone.'); return; }
+  post('undo',{entryId:entry.entryId}).then(function(j){
+    if (!j.ok){ alert(j.error); return; }
     recomputeOpenAfterUndo(entry);
-    S.recent=S.recent.filter(function(r){ return r!==S.recent[0] || false; });
-    S.recent=S.recent.filter(function(r){ return (r.entryIds||[])[0] !== entry.entryIds[0]; });
+    S.recent=S.recent.filter(function(r){ return r.entryId!==entry.entryId; });
     S.lastEntry=null; S.done=Math.max(0,S.done-1);
     document.getElementById('btnUndo').style.display='none';
-    document.getElementById('dWhat').textContent = refused.length
-      ? removed.length + ' removed. ' + refused.length + ' could not be taken back.'
-      : 'Removed. Nothing was recorded for this student.';
-  });
+    document.getElementById('dWhat').textContent='Removed. Nothing was recorded for this student.';
+  }).catch(function(e){ alert(e.message); });
 }
 
 /* ── the card scanner ───────────────────────────────────────────────────
@@ -1561,45 +1403,21 @@ function histFor(key, code){
    Overwriting the rest with zeros would turn a 4th-time offender into a
    first-timer on screen. So a patch is merged, not assigned.
    ─────────────────────────────────────────────────────────────────────── */
-/* ── ONE STUDENT'S PAST, FOLDED BY CATEGORY ────────────────────────────────
-   groomPeek returns her grooming rows for the year, one per offence. The
-   screens want it the other way round — per category, so a pill can say "3rd
-   time, 2 not fixed" beside the thing being looked at — so the folding happens
-   here, once.
-
-   THE OLD APP GOT THIS INSIDE bootstrap, for the whole school, on every
-   sign-in. It is now fetched for ONE student when somebody is standing in front
-   of her, which is the only moment it means anything. */
-function foldHistory(j){
-  var by = {};
-  (j.history||[]).forEach(function(h){
-    var c = h.category;
-    if (!by[c]) by[c] = { times:0, fails:0, noShows:0, trail:'', past:[] };
-    by[c].times++;
-    by[c].fails   += (h.attempts||0) - (h.fixed ? 1 : 0);
-    by[c].noShows += (h.noShows||0);
-    by[c].past.push({ date:h.date, fixed:h.fixed, open:h.open });
-  });
-  return by;
-}
-
-/* Fetches one student's record if it is not already held. Never blocks a
-   screen: the pills are context, and a screen that will not draw without them
-   is worse than a screen that draws without them. */
-function ensureHistory(who, then){
-  var key = openKeyFor(who);
-  if (S.history[key]) { if (then) then(); return; }
-  post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
-    .then(function(j){
-      if (j && j.ok) S.history[key] = foldHistory(j);
-      if (then) then();
-    })
-    .catch(function(){ if (then) then(); });
-}
-
 function mergeHistory(key, j){
   if (!j || !j.history) return;
-  S.history[key] = foldHistory(j);
+  if (!j.partialHistory){ S.history[key] = j.history; return; }
+  S.history[key] = S.history[key] || {};
+  for (var c in j.history){
+    var was = S.history[key][c] || {times:0, fails:0, noShows:0, trail:'', past:[]};
+    var p = j.history[c];
+    S.history[key][c] = {
+      times:   was.times,
+      fails:   p.fails   != null ? p.fails   : was.fails,
+      noShows: p.noShows != null ? p.noShows : was.noShows,
+      trail:   p.trail   != null ? p.trail   : was.trail,
+      past:    was.past
+    };
+  }
 }
 
 function worstTimes(key, codes){
@@ -1678,11 +1496,12 @@ function pillsFor(times, fails, noShows){
 function refreshRecheck(){
   var b=document.getElementById('btnRcRefresh');
   b.disabled=true; b.textContent='⋯';
-  post('groomOpen',{}).then(function(j){
+  post('bootstrap',{}).then(function(j){
     b.disabled=false; b.innerHTML='↻';
     if (!j.ok){ say('mRc', j.error); return; }
-    applyOpen(j.rows);
-    S.loadedAt=j.serverTime||S.loadedAt;
+    S.students=j.students||S.students; S.open=j.open||{}; S.history=j.history||{};
+    S.cats=j.categories||S.cats; S.loadedAt=j.serverTime||S.loadedAt;
+    saveBoot(j);
     var before=S.rcList.length;
     openRecheck();
     var after=S.rcList.length;
@@ -1691,21 +1510,6 @@ function refreshRecheck(){
   }).catch(function(e){
     b.disabled=false; b.innerHTML='↻'; say('mRc', e.message);
   });
-}
-
-/* Opening the screen fetches the list if it has not been fetched. The old app
-   could draw it straight from bootstrap; here the first look costs one read,
-   and every look after that is the refresh button. */
-function goRecheck(){
-  if (S.rcFetched) { openRecheck(); return; }
-  go('loading');
-  document.getElementById('loadMsg').textContent = 'Finding who is still owed a look';
-  post('groomOpen',{}).then(function(j){
-    if (!j.ok){ go('home', true); say('mHome', j.error); return; }
-    applyOpen(j.rows);
-    S.rcFetched = true;
-    openRecheck();
-  }).catch(function(e){ go('home', true); say('mHome', e.message); });
 }
 
 function openRecheck(){
@@ -1970,33 +1774,23 @@ function saveRecheck(resolved, stillOpen, btn, btnLabel){
   var sigBefore=stateSig(r.key), where=(current==='fail'?'mFail':'mRcOne');
   btn.disabled=true; btn.textContent='Saving…';
   slowNote(where, true);
-  /* ONE CALL, NOT ONE PER CATEGORY. Four POSTs over this deployment is four
-     chances to lose a reply, and a half-applied recheck — two marked fixed, one
-     lost, nothing on screen saying so — is the worst outcome available. The
-     server validates the whole batch before writing any of it. */
-  post('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
-                  fixed:entriesFor(r.key,resolved),
-                  notFixed:entriesFor(r.key,stillOpen),
-                  newCategories:added, by:S.who})
+  post('recheck',{studentId:r.id,name:r.name,cls:r.cls,gender:r.gender,
+                  resolved:resolved,stillOpen:stillOpen,newCodes:added,noShow:false,by:S.who})
     .then(function(j){
       btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
       if (!j.ok){ say(where, j.error); return; }
+      var nowOpen=stillOpen.concat(j.addedCodes||added);
+      if (nowOpen.length) S.open[r.key]=nowOpen; else delete S.open[r.key];
+      mergeHistory(r.key, j);
+      openRecheck();
       var msg=r.name+' — ';
       msg += stillOpen.length ? stillOpen.length+' still open' : 'all clear';
-      if (resolved.length) msg += ', '+resolved.length+' cleared';
-      if (j.added && j.added.length) msg += ', '+j.added.length+' new';
-      /* A SECOND FAIL IS A NEW OFFENCE AND THE SCREEN SAYS SO. It is the moment
-         the ladder moves, and somebody standing there should know it happened
-         rather than find out from a worklist a fortnight later. */
-      if (j.raised && j.raised.length){
-        msg += '. ' + (j.raised.length===1 ? 'One counts again' : j.raised.length+' count again') +
-               ' — not fixed after two looks';
+      if (j.closed) msg += ', '+j.closed+' cleared';
+      if (j.added)  msg += ', '+j.added+' new';
+      if (j.repeated && j.repeated.length){
+        msg += '. Already marked today for ' + j.repeated.join(', ') + ', so that was not counted again';
       }
-      if (j.duplicates && j.duplicates.length){
-        msg += '. Already recorded today for ' + j.duplicates.map(labelFor).join(', ') +
-               ', so that was not counted again';
-      }
-      refreshOpenAfterSave(r, j, msg, stillOpen.length ? 'warn' : 'ok');
+      say('mRc', msg, stillOpen.length ? 'warn' : 'ok');
     })
     .catch(function(e){
       btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
@@ -2057,51 +1851,39 @@ function backFromEdit(){ openRecheckOne(S.rcStudent, S.rcStudent.codes, S.rcFrom
 
 function submitEdit(){
   var r=S.rcStudent;
-  var remove=S.edRemove.slice(), add=S.edAdd.slice();
-  if (!remove.length && !add.length){ say('mEdit','Nothing to change.'); return; }
-  var b=document.getElementById('btnEdit');
+  if (!S.edRemove.length && !S.edAdd.length){
+    say('mEdit','Tap what should not be there, or what it should have been.');
+    return;
+  }
+  var b=document.getElementById('btnEdit'), sigBefore=stateSig(r.key);
   b.disabled=true; b.textContent='Saving…';
-
-  /* ── A CORRECTION IS NOT A RECHECK, and the difference is the whole screen.
-     A recheck says the student fixed it. This says WE WROTE DOWN THE WRONG
-     THING, so the row goes rather than being closed — a category she never had
-     should not sit in her history at all.
-
-     ⚠️ AND IT CANNOT ALWAYS GO. Once an offence has been rechecked, deleting it
-     would orphan the recheck rows pointing at it, so the server refuses. That
-     is reported here rather than swallowed: the honest answer is "that one has
-     been looked at already, so it stays". */
-  undoEntries(entriesFor(r.key, remove), function(removed, refused){
-    function finish(msg, kind){
-      b.disabled=false; b.textContent='Save the correction';
-      post('groomOpen',{})
-        .then(function(o){ if (o && o.ok) applyOpen(o.rows); })
-        .catch(function(){})
-        .then(function(){ openRecheck(); say('mRc', msg, kind); });
-    }
-    var note = r.name + ' — ' + (removed.length ? removed.length + ' removed' : 'nothing removed');
-    if (refused.length) note += ', ' + refused.length + ' already rechecked so kept';
-
-    if (!add.length){ finish(note, refused.length ? 'warn' : 'ok'); return; }
-    post('groomSubmit',{ studentId:r.id, name:r.name, cls:r.cls,
-                         categories:add, by:S.who })
-      .then(function(j){
-        finish(note + (j && j.ok ? ', ' + (j.recorded||[]).length + ' added' : ', could not add'),
-               refused.length ? 'warn' : 'ok');
-      })
-      .catch(function(){ finish(note + ', could not add', 'warn'); });
-  });
+  post('edit',{studentId:r.id,name:r.name,cls:r.cls,gender:r.gender,
+               remove:S.edRemove,add:S.edAdd,by:S.who})
+    .then(function(j){
+      b.disabled=false; b.innerHTML='Save the correction';
+      if (!j.ok){ say('mEdit', j.error); return; }
+      var nowOpen=r.codes.filter(function(c){ return S.edRemove.indexOf(c)===-1; })
+                         .concat(j.addedCodes||S.edAdd);
+      if (nowOpen.length) S.open[r.key]=nowOpen; else delete S.open[r.key];
+      openRecheck();
+      var msg='Corrected — '+r.name;
+      if (j.removed) msg += ', '+j.removed+' removed';
+      if (j.added)   msg += ', '+j.added+' added';
+      say('mRc', msg, 'ok');
+    })
+    .catch(function(e){
+      b.disabled=false; b.innerHTML='Save the correction';
+      verifySave(e, 'mEdit', r, sigBefore, function(){
+        openRecheck();
+        say('mRc', 'Corrected after all — ' + r.name + '.', 'ok');
+      });
+    });
 }
-
 function submitNoShow(){
   var r=S.rcStudent, sigBefore=stateSig(r.key);
   /* No student, nothing new to see — anything ticked below is discarded. */
   S.rcNew=[];
-  /* EVERY OPEN OFFENCE AT ONCE, because she did not turn up at all — and each
-     is still recorded on its own row, so nothing has to be told that a no-show
-     costs no attempt. */
-  post('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
-                           noShow:entriesFor(r.key, r.codes), by:S.who})
+  post('recheck',{studentId:r.id,name:r.name,cls:r.cls,resolved:[],stillOpen:[],newCodes:[],noShow:true})
     .then(function(j){
       if (!j.ok){ say('mRcOne', j.error); return; }
       mergeHistory(r.key, j);
@@ -2142,12 +1924,11 @@ document.addEventListener('keydown', function(e){
    exposes its own. Reads nothing this page does not already show, and cannot
    sign anybody in. */
 window.__scan = S;
-window.__scanGo = go;
 
 (function(){
   document.getElementById('loginDate').textContent = dateLine();
   try{
-    var t=sessionStorage.getItem(TOKEN_KEY), w=sessionStorage.getItem(WHO_KEY);
+    var t=sessionStorage.getItem('gt_token'), w=sessionStorage.getItem('gt_who');
     if (t && w){ S.token=t; S.who=w; bootstrap(false); return; }
   }catch(e){}
   document.getElementById('bar').style.width='0%';
