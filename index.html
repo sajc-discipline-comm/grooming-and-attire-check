@@ -642,7 +642,7 @@ var S = {
    A LETTER AFTER THE DATE WHEN A DAY SHIPS MORE THAN ONCE. 20 September 2026
    shipped four times, and three of them said the same thing here — which is
    the one question the stamp exists to answer, unanswered. */
-var APP_BUILD = '2026-09-20h';
+var APP_BUILD = '2026-09-20i';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -1447,7 +1447,7 @@ function paintHome(){
     b.innerHTML='<span class="key">✕</span><span class="txt"><b></b><span></span></span>';
     b.querySelector('b').textContent = r.name;
     b.querySelector('.txt span').textContent = r.cls + ' · ' + r.what;
-    b.onclick = function(){ removeRecent(r.entryId); };
+    b.onclick = function(){ removeRecent(r); };
     list.appendChild(b);
   });
 }
@@ -1470,10 +1470,14 @@ function undoEntries(ids, done){
   });
 }
 
-function removeRecent(entryId){
-  if (!confirm('Remove that entry from the record?')) return;
-  var gone = S.recent.filter(function(r){ return (r.entryIds||[]).indexOf(entryId)>=0; })[0];
-  var ids = gone ? gone.entryIds : [entryId];
+/* ⚠️ TAKES THE ENTRY, NOT AN ID. Until 20 September 2026 the list passed
+   r.entryId — and an entry holds entryIds, one per category — so this asked the
+   server to undo `undefined` and was told, truthfully, there was nothing to
+   undo. It mattered less while Undo sat on the Saved screen; with checks saved
+   in the background this list is where a wrong one gets taken back. */
+function removeRecent(gone){
+  if (!confirm('Remove ' + gone.name + ' — ' + gone.what + ' — from the record?')) return;
+  var ids = gone.entryIds || [];
   undoEntries(ids, function(removed, refused){
     if (removed.length && gone){
       S.recent = S.recent.filter(function(r){ return r !== gone; });
