@@ -616,7 +616,7 @@ var S = {
    A LETTER AFTER THE DATE WHEN A DAY SHIPS MORE THAN ONCE. 20 September 2026
    shipped four times, and three of them said the same thing here — which is
    the one question the stamp exists to answer, unanswered. */
-var APP_BUILD = '2026-09-20d';
+var APP_BUILD = '2026-09-20e';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -943,6 +943,124 @@ function verifySave(err, where, who, sigBefore, onLanded){
     .catch(function(){
       say(where, err.message + ' Could not check either. Refresh in a moment and see.');
     });
+}
+
+/* ── A SAVE DOES NOT WAIT FOR ITS OWN ANSWER ──────────────────────────────
+   Kim, 20 September 2026: "5 sec to write in tracker, 55 second to update in
+   the app … at the top it recognises that these offences were saved already."
+
+   She had it exactly. The write took five seconds; the REPLY was lost on the
+   way back. Measured the same day: after any pause this deployment's answer
+   leg hangs for 10–30s and sometimes ends in Google's 404 page. The page did
+   nothing until that hang ended, and only THEN went to look — over the same
+   slow road. Meanwhile the look-up sent when she picked the student arrived
+   late and printed "Already recorded today" above a button still saying Saving.
+
+   So a save that has not answered in a few seconds is LOOKED FOR while it is
+   still being waited on, and whichever comes first settles it.
+
+   ⚠️ ONLY A POSITIVE FINDING ENDS THE WAIT. A look can arrive before the write
+   does, and reading "not there yet" as "not saved" tells somebody to press
+   Save again — a second offence on a real student. A look that finds nothing
+   concludes nothing; the save goes on being waited for exactly as before, and
+   verifySave still makes the negative call, once, after the fetch has failed.
+
+   ⚠️ AND ONLY LOOKS SENT AFTER THE SAVE COUNT. A peek from before the save
+   describes the world before the save. watchSave sends its own.
+
+   `seen(peek)` returns the reply the server WOULD have sent, rebuilt from the
+   record, or null. The entry ids are in it — so Undo works, which the old
+   "saved after all" path could never offer. */
+var WATCH_FIRST_MS = 6000, WATCH_GAP_MS = 5000, WATCH_MAX = 8;
+
+function watchSave(who, seen, onSeen){
+  var stopped=false, looks=0, timer=null;
+  function again(){ if (!stopped && looks < WATCH_MAX) timer=setTimeout(look, WATCH_GAP_MS); }
+  function look(){
+    if (stopped) return;
+    looks++;
+    post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
+      .then(function(p){
+        if (stopped) return;
+        var reply = (p && p.ok) ? seen(p) : null;
+        if (!reply){ again(); return; }
+        stopped=true;
+        onSeen(reply, p);
+      })
+      .catch(again);
+  }
+  timer=setTimeout(look, WATCH_FIRST_MS);
+  return { stop:function(){ stopped=true; clearTimeout(timer); } };
+}
+
+/** post(), for a write: settles on the reply or on the record, whichever is first. */
+function postWatched(action, body, who, seen){
+  return new Promise(function(resolve, reject){
+    var settled=false;
+    var w = watchSave(who, seen, function(reply){
+      if (settled) return;
+      settled=true; reply.seenInRecord=true; resolve(reply);
+    });
+    post(action, body).then(
+      function(j){ w.stop(); if (!settled){ settled=true; resolve(j); } },
+      function(e){ w.stop(); if (!settled){ settled=true; reject(e); } });
+  });
+}
+
+/* What a groomSubmit reply would have said, from a peek. A category counts
+   only if it is open, dated today, recorded under this name, and was NOT
+   already there before the save — otherwise it is somebody else's row. */
+function submitSeen(key, codes, noneIsFine){
+  var had={};
+  (S.todayFor[key]||[]).forEach(function(x){ had[x.code]=1; });
+  var fresh=codes.filter(function(c){ return !had[c]; });
+  return function(p){
+    if (!fresh.length && !noneIsFine) return null;
+    var made=[];
+    fresh.forEach(function(c){
+      var row=null;
+      (p.open||[]).forEach(function(o){
+        if (o.category===c && o.date===p.today && o.by===S.who) row=o;
+      });
+      if (row) made.push({ entryId:row.entryId, category:c });
+    });
+    if (made.length !== fresh.length) return null;
+    return { ok:true, recorded:made,
+             duplicates:codes.filter(function(c){ return had[c]; }) };
+  };
+}
+
+/* And a groomRecheckMany reply. Each named offence has to show the look this
+   save took: fixed, or one more attempt, or one more no-show than the list
+   held before. Where "before" is not known, nothing is concluded. */
+function recheckSeen(key, fixedIds, notFixedIds, noShowIds, newCodes){
+  var before={};
+  fixedIds.concat(notFixedIds, noShowIds).forEach(function(id){
+    var o=S.openRow[id]||{};
+    before[id]={ attempts:o.attempts, noShows:o.noShows };
+  });
+  var newSeen=submitSeen(key, newCodes, true);
+  function more(now, was){ return typeof was==='number' && (now||0) > was; }
+  return function(p){
+    var byId={}, ok=true, raised=[];
+    (p.history||[]).forEach(function(h){ byId[h.entryId]=h; });
+    fixedIds.forEach(function(id){ if (!byId[id] || !byId[id].fixed) ok=false; });
+    notFixedIds.forEach(function(id){
+      var h=byId[id];
+      if (!h || !more(h.attempts, before[id].attempts)){ ok=false; return; }
+      if (h.escalated) raised.push(id);
+    });
+    noShowIds.forEach(function(id){
+      var h=byId[id];
+      if (!h || !more(h.noShows, before[id].noShows)) ok=false;
+    });
+    if (!ok) return null;
+    var extra=newSeen(p);
+    if (!extra) return null;
+    return { ok:true, raised:raised, added:extra.recorded, duplicates:extra.duplicates,
+             openNow:(p.open||[]).map(function(o){
+               return { entryId:o.entryId, category:o.category }; }) };
+  };
 }
 
 /**
@@ -1653,9 +1771,10 @@ function submitCheck(){
   var key=openKeyFor(s), sigBefore=stateSig(key);
   b.disabled=true; b.textContent='Saving…';
   slowNote('mOff', true);
-  post('groomSubmit',{ studentId:s.id, name:s.name, cls:s.cls,
+  postWatched('groomSubmit',{ studentId:s.id, name:s.name, cls:s.cls,
     categories:S.selected, details:details,
-    remarks:document.getElementById('remarks').value.trim(), by:S.who })
+    remarks:document.getElementById('remarks').value.trim(), by:S.who },
+    {id:s.id, name:s.name, cls:s.cls, key:key}, submitSeen(key, S.selected.slice()))
     .then(function(j){
       b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
       if (!j.ok){ say('mOff', j.error); return; }
@@ -1663,7 +1782,10 @@ function submitCheck(){
          own thing to fix and its own thing to recheck. */
       var made=j.recorded||[];
       var codes=made.map(function(x){ return x.category; });
-      S.open[key]=(S.open[key]||[]).concat(codes);
+      /* Once each. A late peek may already have put these in — that is
+         precisely what Kim saw at the top of the screen on 20 September. */
+      S.open[key]=(S.open[key]||[]).concat(codes).filter(function(c,i,all){
+        return all.indexOf(c)===i; });
       made.forEach(function(x){ S.entryFor[key+'|'+x.category]=x.entryId; });
       S.lastEntry={entryIds:made.map(function(x){ return x.entryId; }),key:key,codes:codes};
       S.recent.unshift({entryIds:S.lastEntry.entryIds,key:key,name:s.name,cls:s.cls,codes:codes,
@@ -1679,6 +1801,10 @@ function submitCheck(){
       document.getElementById('btnUndo').style.display='block';
       say('mDone','');
       go('done');
+      /* Said, because it is true and because the next slow one will be asked
+         about: the app did not hear back, it went and saw. */
+      if (j.seenInRecord) say('mDone','Saved — the server was slow to answer, so the app ' +
+        'checked the record and found it there.','ok');
     })
     .catch(function(e){
       b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
@@ -2276,10 +2402,11 @@ function saveRecheck(resolved, stillOpen, btn, btnLabel){
      chances to lose a reply, and a half-applied recheck — two marked fixed, one
      lost, nothing on screen saying so — is the worst outcome available. The
      server validates the whole batch before writing any of it. */
-  post('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
-                  fixed:entriesFor(r.key,resolved),
-                  notFixed:entriesFor(r.key,stillOpen),
-                  newCategories:added, details:S.rcDetails||{}, by:S.who})
+  var fixedIds=entriesFor(r.key,resolved), notFixedIds=entriesFor(r.key,stillOpen);
+  postWatched('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
+                  fixed:fixedIds, notFixed:notFixedIds,
+                  newCategories:added, details:S.rcDetails||{}, by:S.who},
+              r, recheckSeen(r.key, fixedIds, notFixedIds, [], added))
     .then(function(j){
       btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
       if (!j.ok){ say(where, j.error); return; }
@@ -2419,8 +2546,10 @@ function submitNoShow(){
   /* EVERY OPEN OFFENCE AT ONCE, because she did not turn up at all — and each
      is still recorded on its own row, so nothing has to be told that a no-show
      costs no attempt. */
-  post('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
-                           noShow:entriesFor(r.key, r.codes), by:S.who})
+  var noShowIds=entriesFor(r.key, r.codes);
+  postWatched('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
+                           noShow:noShowIds, by:S.who},
+              r, recheckSeen(r.key, [], [], noShowIds, []))
     .then(function(j){
       if (!j.ok){ say('mRcOne', j.error); return; }
       mergeHistory(r.key, j);
