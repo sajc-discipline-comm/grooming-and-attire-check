@@ -334,39 +334,32 @@ a.btn.plain{text-decoration:none;margin-top:4px}
 .grouphead{font-size:var(--t-xs);font-weight:600;color:var(--muted);letter-spacing:.14em;
   text-transform:uppercase;margin:18px 0 9px}
 .grouphead:first-child{margin-top:0}
-/* ── the card scanner ───────────────────────────────────────────────── */
-.viewfinder{
-  position:relative;width:100%;aspect-ratio:4/3;background:#000;
-  border-radius:var(--r);overflow:hidden;margin:4px 0 18px;
-}
-.viewfinder video{width:100%;height:100%;object-fit:cover;display:block}
-.vf-overlay{position:absolute;inset:0;pointer-events:none}
-.vf-overlay svg{position:absolute;inset:0;width:100%;height:100%}
-.vf-label,.vf-name{
-  position:absolute;left:7%;width:86%;text-align:center;color:rgba(255,255,255,.92);
-  font-size:var(--t-xs);font-weight:600;letter-spacing:.14em;text-transform:uppercase;
-  text-shadow:0 1px 5px rgba(0,0,0,.9);
-}
-.vf-label{top:5.5%}
-.vf-name{top:88.5%;color:rgba(255,255,255,.78)}
-.vf-busy{
-  position:absolute;inset:0;background:rgba(0,0,0,.78);display:none;
-  flex-direction:column;align-items:center;justify-content:center;color:#fff;
-}
-.vf-busy.on{display:flex}
-.vf-busy p{margin:0;font-size:var(--t-md);color:rgba(255,255,255,.85)}
-.shutter-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.shutter{
-  flex:0 0 auto;width:72px;height:72px;border-radius:50%;border:0;cursor:pointer;
-  background:var(--accent);box-shadow:0 0 0 5px var(--paper),0 0 0 7px var(--accent),
-    0 6px 20px -8px rgba(39,50,106,.6);
-  transition:transform .16s var(--ease),background .2s;
-}
-.shutter:hover{background:var(--accent-deep)}
-.shutter:active{transform:scale(.93)}
-.shutter:disabled{opacity:.5;cursor:default}
-.shutter-row .btn.plain{flex:1;min-width:0}
-canvas{display:none}
+/* ── THE CARD SCANNER WAS REMOVED HERE, 20 SEPTEMBER 2026 ─────────────────
+   Kim: "we've never used the card scanner at all LOL."
+
+   It was not removed for being unused. It was removed because it was the only
+   path in this app that could pick a student BY ITSELF — handleOcr
+   auto-advanced whenever the best OCR match beat a confidence threshold and
+   its runner-up — and it was the single largest untested surface in the
+   system. An auto-advance with a wrong threshold records an offence against
+   the wrong girl, and no screen anywhere would ever say so.
+
+   Unused + untested + able to misattribute a disciplinary record is not a
+   feature worth carrying. Same reasoning as the help link deleted on 22
+   August: a confidently wrong thing is worse than a missing one.
+
+   WHAT WENT: the pScan pane, the "Scan their card instead" button, the
+   viewfinder CSS, goScan/leaveScan/startCamera/stopCamera/croppedCard/
+   capture/handleOcr, and the `ocr` permission on the grooming role in
+   tracker/WebApi.js — a grooming token can no longer spend the OCR quota the
+   gate scanner depends on.
+
+   WHAT STAYED: apiOcr_ on the server, because the gate scanner and the green
+   slip page still use it against their own roles. Typing the name is now the
+   only way in, which is what everybody was doing anyway.
+
+   It is in git if it is ever wanted back — with tests, and with somebody
+   deciding what the auto-advance threshold should be. */
 </style>
 </head>
 <body>
@@ -452,45 +445,6 @@ canvas{display:none}
     <input id="q" autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="onSearch()">
   </div>
   <div id="hits"></div>
-  <button class="btn quiet wide" style="margin-top:6px" onclick="goScan()">📷 Scan their card instead</button>
-</section>
-
-<!-- 4b · SCAN -->
-<section class="pane flow" id="pScan">
-  <p class="eyebrow" id="scanWho"></p>
-  <h2>Scan their card</h2>
-  <p class="lede">Fit the whole card inside the box, and make sure the <b>name</b> is sharp and readable.</p>
-  <div id="mScan"></div>
-
-  <div class="viewfinder" id="viewfinder">
-    <video id="cam" playsinline muted autoplay></video>
-    <div class="vf-overlay">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs>
-          <mask id="cardMask">
-            <rect width="100" height="100" fill="#fff"/>
-            <rect x="7" y="14" width="86" height="72" rx="2" fill="#000"/>
-          </mask>
-        </defs>
-        <rect width="100" height="100" fill="rgba(0,0,0,.62)" mask="url(#cardMask)"/>
-        <rect x="7" y="14" width="86" height="72" rx="2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>
-        <polyline points="7,24 7,14 17,14"  fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-        <polyline points="83,14 93,14 93,24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-        <polyline points="7,76 7,86 17,86"  fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-        <polyline points="83,86 93,86 93,76" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-      </svg>
-      <div class="vf-label">Fit the card to the box</div>
-      <div class="vf-name">Name must be inside</div>
-    </div>
-    <div class="vf-busy" id="vfBusy"><div class="spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.25);border-top-color:#fff;margin:0 auto 14px"></div><p>Reading the card…</p></div>
-  </div>
-  <canvas id="shot" style="display:none"></canvas>
-
-  <div class="shutter-row">
-    <button class="btn plain" onclick="leaveScan()">← Back</button>
-    <button class="shutter" id="btnShot" onclick="capture()" aria-label="Take the photo"></button>
-    <button class="btn plain" onclick="leaveScan()">Type it</button>
-  </div>
 </section>
 
 <!-- 5 · CONFIRM -->
@@ -644,6 +598,10 @@ var S = {
      groomOpen and groomPeek have always sent categoryName, built from the
      UNFILTERED tab. This is where it is kept. */
   nameFor:{},
+  /* minScore/minMargin are the OCR auto-advance thresholds. Nothing on this
+     page reads them since the scanner was removed; they stay because
+     bootstrap sends one config shape to every phone app and the gate scanner
+     still uses them. Harmless, and cheaper than a second reply shape. */
   cfg:{minScore:.72,minMargin:.15,graceDays:3},
   student:null, selected:[], lastEntry:null, recent:[], done:0,
   history:{}, rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[], failStill:[],
@@ -657,9 +615,9 @@ var S = {
 var APP_BUILD = '2026-09-20';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
-              scan:'pScan', confirm:'pConfirm', offences:'pOffences', done:'pDone',
+              confirm:'pConfirm', offences:'pOffences', done:'pDone',
               recheck:'pRecheck', rcone:'pRcOne', edit:'pEdit', fail:'pFail' };
-var PROGRESS = { login:0, loading:.08, home:0, find:.25, scan:.25, confirm:.5,
+var PROGRESS = { login:0, loading:.08, home:0, find:.25, confirm:.5,
                  offences:.75, done:1, recheck:.35, rcone:.7, edit:.7, fail:.85 };
 /* ── what Back means ─────────────────────────────────────────────────────
    UP one level, not backwards through everything you did.
@@ -678,7 +636,7 @@ var PROGRESS = { login:0, loading:.08, home:0, find:.25, scan:.25, confirm:.5,
    search. It remembers which, and that is a single field, not a stack.
    ─────────────────────────────────────────────────────────────────────── */
 var PARENT = {
-  scan:'find', confirm:'find', offences:'confirm',
+  confirm:'find', offences:'confirm',
   rcone:'recheck', fail:'rcone', edit:'rcone'
 };
 
@@ -721,15 +679,10 @@ function goBack(){
   if (up) go(up, true);
 }
 function paint(name){
-  if (name !== 'scan') stopCamera();          // never leave the camera running
   if (name === 'home') paintHome();
   if (name === 'find'){
     document.getElementById('q').value=''; document.getElementById('hits').innerHTML=''; say('mFind','');
     document.getElementById('findCount').textContent = 'Student No. ' + (S.done + 1);
-  }
-  if (name === 'scan'){
-    document.getElementById('scanWho').textContent = 'Student No. ' + (S.done + 1);
-    say('mScan','');
   }
 }
 
@@ -1750,102 +1703,6 @@ function undoLast(){
       ? removed.length + ' removed. ' + refused.length + ' could not be taken back.'
       : 'Removed. Nothing was recorded for this student.';
   });
-}
-
-/* ── the card scanner ───────────────────────────────────────────────────
-   The guide box is 86% x 72% of a 4:3 viewfinder, which works out at almost
-   exactly the proportions of an ID card. The photo is CROPPED to that box
-   before being sent for reading — this matters more than it looks, because
-   OCR given a whole room performs far worse than OCR given just a card.
-   ───────────────────────────────────────────────────────────────────── */
-var CARD = { x:.07, y:.14, w:.86, h:.72 };
-var stream=null;
-
-function goScan(){
-  go('scan');
-  startCamera();
-}
-function leaveScan(){
-  stopCamera();
-  go('find');
-  setTimeout(function(){ document.getElementById('q').focus(); },160);
-}
-function startCamera(){
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    say('mScan','This browser will not give the app a camera. Type the name instead.','warn'); return;
-  }
-  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment',
-      width:{ideal:1920}, height:{ideal:1440} } })
-    .then(function(st){ stream=st; var v=document.getElementById('cam'); v.srcObject=st; v.play(); })
-    .catch(function(){
-      say('mScan','No camera access. Check the browser has permission, or type the name instead.','warn');
-    });
-}
-function stopCamera(){
-  if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; }
-  var v=document.getElementById('cam'); if (v) v.srcObject=null;
-  var busy=document.getElementById('vfBusy'); if (busy) busy.classList.remove('on');
-  var btn=document.getElementById('btnShot'); if (btn) btn.disabled=false;
-}
-
-/** Crop the live frame down to just what is inside the guide box. */
-function croppedCard(){
-  var v=document.getElementById('cam'), c=document.getElementById('shot');
-  var nw=v.videoWidth, nh=v.videoHeight;
-  var bw=v.clientWidth, bh=v.clientHeight;
-  if (!nw || !bw) return null;
-
-  // object-fit:cover means part of the frame is off-screen; work out what is visible
-  var na=nw/nh, ba=bw/bh, visW, visH, visX, visY;
-  if (na > ba){ visH=nh; visW=visH*ba; visY=0; visX=(nw-visW)/2; }
-  else        { visW=nw; visH=visW/ba; visX=0; visY=(nh-visH)/2; }
-
-  var cx=Math.round(visX+visW*CARD.x), cy=Math.round(visY+visH*CARD.y);
-  var cw=Math.round(visW*CARD.w),      ch=Math.round(visH*CARD.h);
-
-  var MAX=1200, scale=Math.min(1, MAX/Math.max(cw,ch));
-  c.width=Math.round(cw*scale); c.height=Math.round(ch*scale);
-  c.getContext('2d').drawImage(v, cx, cy, cw, ch, 0, 0, c.width, c.height);
-  return c;
-}
-
-function capture(){
-  var c=croppedCard();
-  if (!c){ say('mScan','The camera is not ready yet — give it a second.','warn'); return; }
-  var b64=c.toDataURL('image/jpeg',.85).split(',')[1];
-  var btn=document.getElementById('btnShot'), busy=document.getElementById('vfBusy');
-  btn.disabled=true; busy.classList.add('on'); say('mScan','');
-  post('ocr',{base64:b64}).then(function(j){
-    btn.disabled=false; busy.classList.remove('on');
-    if (!j.ok){ say('mScan', j.error, 'warn'); return; }
-    stopCamera();
-    go('find');
-    handleOcr(j.text||'');
-  }).catch(function(e){ btn.disabled=false; busy.classList.remove('on'); say('mScan', e.message); });
-}
-/**
- * Auto-advance only when the best match is BOTH good enough and clearly
- * ahead of the runner-up. Otherwise show the choices. It never guesses.
- */
-function handleOcr(text){
-  var lines=text.split(/[\n\r]+/).map(function(l){ return l.trim(); }).filter(function(l){ return l.length>2; });
-  var best=[], seen={};
-  lines.forEach(function(line){
-    search(line,5).forEach(function(h){
-      if (seen[h.st[0]]){ if (h.pct>seen[h.st[0]].pct) seen[h.st[0]].pct=h.pct; return; }
-      seen[h.st[0]]={st:h.st,pct:h.pct}; best.push(seen[h.st[0]]);
-    });
-  });
-  best.sort(function(a,b){ return b.pct-a.pct; });
-  if (!best.length){
-    document.getElementById('q').value=lines[0]||''; onSearch();
-    say('mFind','Could not read a name from that. Type it instead.','warn'); return;
-  }
-  var top=best[0].pct, second=best.length>1?best[1].pct:0;
-  if (top>=S.cfg.minScore && (top-second)>=S.cfg.minMargin){ chooseStudent(best[0].st); return; }
-  var box=document.getElementById('hits'); box.innerHTML='';
-  best.slice(0,6).forEach(function(h,i){ box.appendChild(hitButton(h.st, i + 1)); });
-  say('mFind','Not certain enough to pick one. Choose from these, or type the name.','warn');
 }
 
 /* ── recheck ────────────────────────────────────────────────────────── */
