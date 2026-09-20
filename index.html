@@ -616,7 +616,7 @@ var S = {
    A LETTER AFTER THE DATE WHEN A DAY SHIPS MORE THAN ONCE. 20 September 2026
    shipped four times, and three of them said the same thing here — which is
    the one question the stamp exists to answer, unanswered. */
-var APP_BUILD = '2026-09-20f';
+var APP_BUILD = '2026-09-20g';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -834,6 +834,11 @@ var READ_ONLY = { bootstrap:1, refresh:1, groomOpen:1, groomPeek:1 };
    something else. So undo asks you to try again instead. That is the safer
    half of the trade. */
 var RETRY_ON_BUSY = { groomSubmit:1, groomRecheckMany:1 };
+
+/* How long a read waits before it is asked a second time alongside the first —
+   see post(). An honest read of the recheck list runs to about five seconds;
+   past that, the odds are it is the answer that is lost, not the work. */
+var HEDGE_MS = 5000;
 var MAX_BUSY_TRIES = 4;
 
 /* What the last slow call actually cost, split into the part the server
@@ -847,7 +852,24 @@ function post(action, body, attempt){
   var payload = Object.assign({ action:action, token:S.token }, body||{});
   var started = Date.now();
 
-  return rawPost(payload)
+  /* ⚠️ A READ THAT HAS NOT ANSWERED IS ASKED AGAIN ALONGSIDE ITSELF — 20
+     September 2026, Kim: "i feel like all the time the server fails to
+     respond." Measured that night: a hang belongs to one request, and the
+     next one sent is usually home in 2–5s while the first is still hanging
+     (see watchSave). Reads write nothing, so a second copy costs a little
+     server time and nothing else; whichever answers first is used and the
+     other is ignored.
+
+     ⚠️ NEVER A WRITE. A second copy of a save is somebody pressing Save twice.
+     Writes are found in the record instead — postWatched.
+
+     bootstrap waits longer before its second ask: it carries the whole roster,
+     and on a cold cache it is honestly slow rather than hung. */
+  var first = !READ_ONLY[action] ? rawPost(payload)
+    : firstAnswered(function(){ return rawPost(payload); }, 3,
+                    action === 'bootstrap' || action === 'refresh' ? HEDGE_MS * 2 : HEDGE_MS);
+
+  return first
     .catch(function(e){
       if (!READ_ONLY[action] || !e.unknown) throw e;
       return new Promise(function(done){ setTimeout(done, 700); })
@@ -996,7 +1018,7 @@ function verifySave(err, where, who, sigBefore, onLanded){
    WHAT IT COSTS. Nothing while saves are answered. A lost answer is usually
    found by the second or third look; the ceiling is WATCH_MAX narrow reads,
    spread over the time the page would otherwise have spent doing nothing. */
-var WATCH_FIRST_MS = 4000, WATCH_GAP_MS = 2000, WATCH_MAX = 12;
+var WATCH_FIRST_MS = 3000, WATCH_GAP_MS = 1500, WATCH_MAX = 14;
 
 function watchSave(who, seen, onSeen){
   var stopped=false, looks=0, timer=null;
@@ -1139,7 +1161,10 @@ function doLogin(){
   if (!pw)  { say('mLogin','Enter the password.'); return; }
   var b = document.getElementById('btnLogin');
   b.disabled = true; b.textContent = 'Signing in…'; say('mLogin','');
-  rawPost({ action:'groomLogin', password:pw })
+  /* Asked again alongside itself if it hangs — see post(). Checking a
+     password writes nothing, and this is the first call of the morning, which
+     is the one the measurements say is likeliest to be lost. */
+  firstAnswered(function(){ return rawPost({ action:'groomLogin', password:pw }); }, 3, HEDGE_MS)
     .then(function(j){
       b.disabled = false; b.textContent = 'Sign in';
       if (!j.ok) { say('mLogin', j.error || 'Could not sign in.'); return; }
