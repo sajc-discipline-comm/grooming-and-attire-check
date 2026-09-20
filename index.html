@@ -290,6 +290,25 @@ a.btn.plain{text-decoration:none;margin-top:4px}
 .tick svg{width:34px;height:34px;stroke:var(--good);stroke-width:2.6;fill:none;
   stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:32;stroke-dashoffset:32;
   animation:draw .5s var(--ease) forwards .3s}
+/* The tick is only DRAWN once the save has landed. While it is on its way the
+   circle is empty and grey; if it failed the circle is red and still empty —
+   and in both cases the heading beneath says which, in words. */
+.tick.wait{background:var(--sunk)}
+.tick.bad{background:var(--bad-tint)}
+.tick.wait svg,.tick.bad svg{visibility:hidden}
+
+/* THE ALARM — see paintUnsaved. Above every pane, never over the top of one:
+   it takes its own room, so it cannot hide the button somebody needs. */
+#unsaved{flex:0 0 auto}
+.unsavedRow{background:var(--bad-tint);color:var(--ink);border-bottom:2px solid var(--bad);
+  padding:var(--s-3) var(--s-5)}
+.unsavedRow p{margin:0;font-size:var(--t-md);line-height:1.4}
+.unsavedRow b{color:var(--bad)}
+.unsavedRow .why{font-size:var(--t-sm);color:var(--muted);margin-top:2px}
+.unsavedRow .acts{display:flex;gap:var(--s-2);margin-top:var(--s-2)}
+.unsavedRow .btn{padding:10px 16px;font-size:var(--t-md)}
+#savingNote{flex:0 0 auto;font-size:var(--t-xs);color:var(--muted);text-align:center;
+  padding:var(--s-1) var(--s-4);background:var(--sunk)}
 @keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
 @keyframes draw{to{stroke-dashoffset:0}}
 .centered{text-align:center}
@@ -372,6 +391,10 @@ a.btn.plain{text-decoration:none;margin-top:4px}
     <button class="back" id="back" onclick="goBack()">← Back</button>
   </div>
 </div>
+<!-- ABOVE EVERY PANE, because a save that failed after she walked on has to
+     reach her on whatever screen she is looking at. See paintUnsaved. -->
+<div id="unsaved" role="alert" aria-live="assertive"></div>
+<div id="savingNote" aria-live="polite" style="display:none"></div>
 
 <div class="stage">
 
@@ -480,12 +503,12 @@ a.btn.plain{text-decoration:none;margin-top:4px}
 </section>
 <!-- 7 · SAVED -->
 <section class="pane centered" id="pDone">
-  <div class="tick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
-  <h2>Saved</h2>
+  <div class="tick" id="dTick"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+  <h2 id="dHead">Saved</h2>
   <p class="lede" id="dWhat"></p>
   <div id="mDone"></div>
   <div class="stack">
-    <button class="btn wide" onclick="nextStudent()">Next student</button>
+    <button class="btn wide" id="btnNext" onclick="nextStudent()">Next student</button>
     <button class="btn plain wide" id="btnUndo" onclick="undoLast()">That was wrong — undo</button>
     <button class="btn plain wide" onclick="go('home')">Finish for now</button>
   </div>
@@ -606,6 +629,9 @@ var S = {
   student:null, selected:[], lastEntry:null, recent:[], done:0,
   history:{}, rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[], failStill:[],
   rcDetails:{}, rcFailedFetch:false,
+  /* Checks the app is carrying — see submitCheck. NOT cleared by signOut: a
+     failed one still has to be dealt with by whoever signs back in. */
+  jobs:[], shownJob:0,
   edRemove:[], edAdd:[], loadedAt:''
 };
 
@@ -616,7 +642,7 @@ var S = {
    A LETTER AFTER THE DATE WHEN A DAY SHIPS MORE THAN ONCE. 20 September 2026
    shipped four times, and three of them said the same thing here — which is
    the one question the stamp exists to answer, unanswered. */
-var APP_BUILD = '2026-09-20g';
+var APP_BUILD = '2026-09-20h';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -665,6 +691,7 @@ function go(name, isBack){
   var signedIn = name !== 'login' && name !== 'loading';
   document.getElementById('back').classList.toggle('on', signedIn && !!parentOf(name));
   document.getElementById('btnHome').classList.toggle('on', signedIn && name !== 'home');
+  paintUnsaved();   /* the quiet "saving in the background" line depends on the pane */
 }
 
 /**
@@ -1047,11 +1074,20 @@ function firstAnswered(send, n, gap){
   return new Promise(function(resolve, reject){
     var done=false, sent=0, failed=0, timer=null;
     function go1(){
+      clearTimeout(timer);
       sent++;
       if (sent < n) timer=setTimeout(go1, gap);
       send().then(
         function(j){ if (done) return; done=true; clearTimeout(timer); resolve(j); },
-        function(e){ failed++; if (!done && failed >= n){ done=true; reject(e); } });
+        function(e){
+          failed++;
+          if (done) return;
+          if (failed >= n){ done=true; reject(e); return; }
+          /* A copy that FAILS is not one to wait behind. The gap exists for a
+             copy that is hanging; a phone with no signal should be told so in
+             a moment, not after the timers have run out. */
+          if (sent < n) go1();
+        });
     }
     go1();
   });
@@ -1834,63 +1870,180 @@ function submitCheck(){
   if (!S.selected.length){ say('mOff','Tap at least one category, or cancel.'); return; }
   var details=collectDetails(document.getElementById('cats'), S.selected, 'mOff');
   if (!details) return;
-  var s=S.student, b=document.getElementById('btnSubmit');
-  var key=openKeyFor(s), sigBefore=stateSig(key);
-  b.disabled=true; b.textContent='Saving…';
-  slowNote('mOff', true);
-  postWatched('groomSubmit',{ studentId:s.id, name:s.name, cls:s.cls,
-    categories:S.selected, details:details,
-    remarks:document.getElementById('remarks').value.trim(), by:S.who },
-    {id:s.id, name:s.name, cls:s.cls, key:key}, submitSeen(key, S.selected.slice()))
+  var s=S.student, key=openKeyFor(s), codes=S.selected.slice();
+  /* ── SAVE, AND WALK ON — 20 September 2026 ──────────────────────────────
+     Kim, with a lost answer already down from 55 seconds to about eight: "is
+     there a way to shorten the wait even more?" Not by waiting better. The
+     write itself is five or six seconds and nothing on a phone shortens that.
+     What can change is WHO waits: the check becomes a JOB the app carries, the
+     screen moves on at once, and a job that goes wrong says so in #unsaved —
+     on whatever screen she has reached by then, until somebody deals with it.
+
+     ⚠️ ONLY A NEW CHECK. A recheck still waits (saveRecheck): a repeated "not
+     fixed" is a second attempt used, and the second attempt is the one that
+     raises a new offence. A repeated check is refused by the server per
+     category per day, so trying one again can only ever leave one row.
+
+     `seen` IS BUILT NOW AND KEPT ON THE JOB. It remembers what was already
+     recorded today BEFORE this save, which is the only moment that is true. */
+  var job={ id:++jobSeq, state:'saving', error:'', note:'', name:s.name, cls:s.cls, key:key,
+            who:{id:s.id, name:s.name, cls:s.cls, key:key}, codes:codes, details:details,
+            remarks:document.getElementById('remarks').value.trim(),
+            seen:submitSeen(key, codes) };
+  S.jobs.unshift(job);
+  S.shownJob=job.id; S.lastEntry=null;
+  paintJob(job);
+  go('done');
+  runJob(job);
+}
+
+var jobSeq=0;
+
+function jobPayload(job){
+  return { studentId:job.who.id, name:job.name, cls:job.cls, categories:job.codes,
+           details:job.details, remarks:job.remarks, by:S.who };
+}
+
+function runJob(job){
+  job.state='saving'; job.error=''; paintJobs();
+  postWatched('groomSubmit', jobPayload(job), job.who, job.seen)
     .then(function(j){
-      b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
-      if (!j.ok){ say('mOff', j.error); return; }
-      /* ONE ROW PER CATEGORY, each with its own entry id, because each is its
-         own thing to fix and its own thing to recheck. */
-      var made=j.recorded||[];
-      var codes=made.map(function(x){ return x.category; });
-      /* Once each. A late peek may already have put these in — that is
-         precisely what Kim saw at the top of the screen on 20 September. */
-      S.open[key]=(S.open[key]||[]).concat(codes).filter(function(c,i,all){
-        return all.indexOf(c)===i; });
-      made.forEach(function(x){ S.entryFor[key+'|'+x.category]=x.entryId; });
-      S.lastEntry={entryIds:made.map(function(x){ return x.entryId; }),key:key,codes:codes};
-      S.recent.unshift({entryIds:S.lastEntry.entryIds,key:key,name:s.name,cls:s.cls,codes:codes,
-        what:codes.map(labelFor).join(', ')});
-      S.recent=S.recent.slice(0,10); S.done++;
-      var doneLines = codes.map(function(c){
-        return labelFor(c) + (details[c] ? ' — ' + details[c] : '');
-      });
-      if (j.duplicates && j.duplicates.length){
-        doneLines.push('Already recorded today: ' + j.duplicates.map(labelFor).join(', '));
-      }
-      paintDone(s.name, doneLines);
-      document.getElementById('btnUndo').style.display='block';
-      say('mDone','');
-      go('done');
-      /* Said, because it is true and because the next slow one will be asked
-         about: the app did not hear back, it went and saw. */
-      if (j.seenInRecord) say('mDone','Saved — the server was slow to answer, so the app ' +
-        'checked the record and found it there.','ok');
+      if (j.ok){ jobLanded(job, j, j.seenInRecord
+        ? 'Saved — the server was slow to answer, so the app checked the record and found it there.' : ''); }
+      else jobFailed(job, 'NOT SAVED', j.error);
     })
     .catch(function(e){
-      b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
-      verifySave(e, 'mOff', {id:s.id, name:s.name, cls:s.cls, key:key}, sigBefore, function(){
-        /* It is in the record, but the app never received the entry ID, so
-           there is nothing for Undo to target. Say so rather than showing a
-           button that would fail. */
-        S.done++;
-        S.lastEntry=null;
-        paintDone(s.name, S.selected.map(labelFor));
-        document.getElementById('btnUndo').style.display='none';
-        go('done');
-        say('mOff','');
-        say('mDone','Saved after all — the connection dropped before the app could say so. ' +
-            'Undo is not available for this one; take it back from Entered this session ' +
-            'on the front screen instead.','warn');
-      });
+      if (!e.unknown){ jobFailed(job, 'NOT SAVED', e.message); return; }
+      lookForJob(job, e.message);
     });
 }
+
+/* The answer was lost. Up to three looks, overlapping — see firstAnswered — and
+   the first one ANSWERED decides. This is the only place allowed to say a check
+   was not saved, so it needs a real answer from a look sent after the failure. */
+function lookForJob(job, why){
+  job.state='saving'; paintJobs();
+  firstAnswered(function(){
+      return post('groomPeek', { studentId:job.who.id, name:job.name, cls:job.cls });
+    }, 3, WATCH_GAP_MS)
+    .then(function(p){
+      var reply = (p && p.ok) ? job.seen(p) : null;
+      if (reply) jobLanded(job, reply, 'Saved after all — the connection dropped before the app could say so.');
+      else if (p && p.ok) jobFailed(job, 'NOT SAVED', why + ' The app checked the record and it is not there.');
+      else jobFailed(job, 'COULD NOT CHECK', why + ' The app could not check the record either.');
+    })
+    .catch(function(){
+      jobFailed(job, 'COULD NOT CHECK', why + ' The app could not check the record either.');
+    });
+}
+
+/* ⚠️ LOOK BEFORE SENDING AGAIN. "Could not check" means exactly that — it may
+   well be there. The server would refuse the repeat, but a refusal would read
+   here as a second failure of something that worked. */
+function retryJob(job){
+  job.state='saving'; job.error=''; paintJobs();
+  post('groomPeek', { studentId:job.who.id, name:job.name, cls:job.cls })
+    .then(function(p){
+      var reply = (p && p.ok) ? job.seen(p) : null;
+      if (reply) jobLanded(job, reply, 'Saved — it was in the record all along.');
+      else runJob(job);
+    })
+    .catch(function(){ runJob(job); });
+}
+
+function discardJob(job){
+  if (!confirm('Discard the unsaved check for ' + job.name + '?\n\n' +
+               job.codes.map(labelFor).join(', ') + '\n\nNothing will be recorded for it.')) return;
+  S.jobs=S.jobs.filter(function(x){ return x!==job; });
+  if (S.shownJob===job.id){ S.shownJob=0; if (current==='done') go('find'); }
+  paintJobs();
+}
+
+function jobLanded(job, j, note){
+  /* ONE ROW PER CATEGORY, each with its own entry id, because each is its
+     own thing to fix and its own thing to recheck. */
+  var made=j.recorded||[], key=job.key;
+  var codes=made.map(function(x){ return x.category; });
+  /* Once each. A late peek may already have put these in — that is
+     precisely what Kim saw at the top of the screen on 20 September. */
+  S.open[key]=(S.open[key]||[]).concat(codes).filter(function(c,i,all){
+    return all.indexOf(c)===i; });
+  made.forEach(function(x){ S.entryFor[key+'|'+x.category]=x.entryId; });
+  job.state='saved'; job.note=note||'';
+  job.entry={entryIds:made.map(function(x){ return x.entryId; }),key:key,codes:codes};
+  job.duplicates=j.duplicates||[];
+  S.recent.unshift({entryIds:job.entry.entryIds,key:key,name:job.name,cls:job.cls,codes:codes,
+    what:codes.map(labelFor).join(', ')});
+  S.recent=S.recent.slice(0,10); S.done++;
+  paintJobs();
+}
+
+function jobFailed(job, head, why){
+  job.state='failed'; job.head=head; job.error=why||'';
+  paintJobs();
+}
+
+/* Everything a job's state can change on screen, in one place: the Saved pane
+   if it is showing this job, the alarm, and the home screen's list. */
+function paintJobs(){
+  var shown=S.jobs.filter(function(x){ return x.id===S.shownJob; })[0];
+  if (shown && current==='done') paintJob(shown);
+  paintUnsaved();
+  if (current==='home') paintHome();
+}
+
+function paintJob(job){
+  var lines=job.codes.map(function(c){
+    return labelFor(c) + (job.details[c] ? ' — ' + job.details[c] : '');
+  });
+  if (job.duplicates && job.duplicates.length){
+    lines.push('Already recorded today: ' + job.duplicates.map(labelFor).join(', '));
+  }
+  paintDone(job.name, lines);
+  var head=document.getElementById('dHead'), tick=document.getElementById('dTick');
+  head.textContent = job.state==='saved' ? 'Saved' : job.state==='failed' ? 'Not saved' : 'Saving…';
+  tick.className = 'tick' + (job.state==='saved' ? '' : job.state==='failed' ? ' bad' : ' wait');
+  /* Undo names entry ids, and there are none until the save has landed. */
+  S.lastEntry = job.state==='saved' ? job.entry : null;
+  document.getElementById('btnUndo').style.display = job.state==='saved' ? 'block' : 'none';
+  if (job.state==='saving') say('mDone','You can carry on to the next student — this finishes ' +
+                                'by itself, and the app will say so loudly if it does not.','ok');
+  else if (job.state==='failed') say('mDone', job.error + ' See the top of the screen.');
+  else say('mDone', job.note, job.note ? (/after all/.test(job.note) ? 'warn' : 'ok') : '');
+}
+
+/* ── THE ALARM ────────────────────────────────────────────────────────────
+   A save that failed after she walked on has to reach her WHEREVER SHE IS.
+   So it is not a message on a pane: it sits above every pane, it names the
+   student and the offences in words, and it stays until somebody presses one
+   of its two buttons. Words first, colour second — "NOT SAVED" is readable in
+   greyscale and by a screen reader (role=alert). */
+function paintUnsaved(){
+  var box=document.getElementById('unsaved'); box.innerHTML='';
+  S.jobs.filter(function(x){ return x.state==='failed'; }).forEach(function(job){
+    var d=document.createElement('div'); d.className='unsavedRow';
+    d.innerHTML='<p><b></b> <span></span></p><p class="why"></p>' +
+      '<div class="acts"><button class="btn bad" data-act="retry">Try again</button>' +
+      '<button class="btn quiet" data-act="discard">Discard</button></div>';
+    d.querySelector('b').textContent=(job.head||'NOT SAVED') + ' — ' + job.name + ' (' + job.cls + ')';
+    d.querySelector('span').textContent=job.codes.map(labelFor).join(', ');
+    d.querySelector('.why').textContent=job.error;
+    d.querySelector('[data-act="retry"]').onclick=function(){ retryJob(job); };
+    d.querySelector('[data-act="discard"]').onclick=function(){ discardJob(job); };
+    box.appendChild(d);
+  });
+  var saving=S.jobs.filter(function(x){ return x.state==='saving'; }).length;
+  var quiet=document.getElementById('savingNote');
+  quiet.textContent = saving ? 'Saving ' + saving + (saving===1 ? ' check' : ' checks') + ' in the background…' : '';
+  quiet.style.display = saving && current!=='done' ? 'block' : 'none';
+}
+
+/* Closing the tab with a check still on its way, or one that failed and has not
+   been dealt with, loses it without a word. The browser asks first. */
+window.addEventListener('beforeunload', function(e){
+  if (!S.jobs.some(function(x){ return x.state!=='saved'; })) return;
+  e.preventDefault(); e.returnValue='';
+});
 function undoLast(){
   if (!S.lastEntry) return;
   var entry=S.lastEntry;
