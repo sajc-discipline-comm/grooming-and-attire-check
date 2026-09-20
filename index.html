@@ -632,6 +632,18 @@ var S = {
      undefined until then, the first save of the day died with "cannot set
      properties of undefined". */
   entryFor:{}, openRow:{}, todayFor:{}, rcFetched:false,
+  /* ⚠️ WHAT THE SERVER CALLED EACH CODE, KEPT SEPARATELY FROM THE FORM'S LIST.
+     bootstrap sends only ACTIVE categories, because a retired one must not be
+     offered on the form again — that is right. But 🏷️ Categories is
+     hand-edited and read at runtime, so a category can be retired while
+     students are still carrying open offences under it, and those offences
+     still have to be READABLE. Until 20 September 2026 labelFor() looked only
+     in the active list and fell back to the bare code, so retiring a category
+     turned every outstanding offence for it into "C2" on the recheck list —
+     the exact fault Kim named on 22 August: "people don't know what is c1."
+     groomOpen and groomPeek have always sent categoryName, built from the
+     UNFILTERED tab. This is where it is kept. */
+  nameFor:{},
   cfg:{minScore:.72,minMargin:.15,graceDays:3},
   student:null, selected:[], lastEntry:null, recent:[], done:0,
   history:{}, rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[], failStill:[],
@@ -1132,6 +1144,7 @@ function applyOpen(rows){
     S.open[key].push(r.category);
     S.entryFor[key + '|' + r.category] = r.entryId;
     S.openRow[r.entryId] = r;
+    rememberName(r.category, r.categoryName);
   });
 }
 
@@ -1558,9 +1571,24 @@ function proceed(){
   if (openCodes.length){ openRecheckOne(S.student, openCodes, 'find'); return; }
   showOffences();
 }
+/**
+ * THE OFFENCE IN WORDS, WHEREVER THE WORDS CAN BE FOUND.
+ *
+ * The active list first — it is the current wording and the form's own copy.
+ * Then whatever the SERVER called it, which covers a category retired while
+ * students are still carrying it. The bare code only if both are silent, and
+ * that is now genuinely the last resort rather than the routine answer for
+ * every retired category.
+ */
 function labelFor(code){
   var c=S.cats.filter(function(x){ return x.code===code; })[0];
-  return c ? c.name : code;
+  if (c) return c.name;
+  return S.nameFor[code] || code;
+}
+
+/** Remember what the server called a code, if it said. */
+function rememberName(code, name){
+  if (code && name && name !== code) S.nameFor[code] = name;
 }
 /** The gender rule: blank means don't offer it to that gender at all. */
 function labelForStudent(cat,gender){
@@ -1932,7 +1960,11 @@ function applyPeek(key, j){
   rows.forEach(function(o){
     S.entryFor[key + '|' + o.category] = o.entryId;
     S.openRow[o.entryId] = o;
+    rememberName(o.category, o.categoryName);
   });
+  /* Her whole year, not just what is open — a category retired since an old
+     offence was recorded still has to read as words in her history. */
+  (j.history||[]).forEach(function(h){ rememberName(h.category, h.categoryName); });
   S.history[key] = foldHistory(j);
   S.todayFor[key] = j.recordedToday || [];
 }
