@@ -616,7 +616,7 @@ var S = {
    A LETTER AFTER THE DATE WHEN A DAY SHIPS MORE THAN ONCE. 20 September 2026
    shipped four times, and three of them said the same thing here — which is
    the one question the stamp exists to answer, unanswered. */
-var APP_BUILD = '2026-09-20e';
+var APP_BUILD = '2026-09-20f';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -928,7 +928,13 @@ function verifySave(err, where, who, sigBefore, onLanded){
      Log; bootstrap re-reads the whole Master Database across every intake
      tab when the cache is cold, so checking a save was costing more than
      the save it was checking. */
-  post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
+  /* UP TO THREE LOOKS, OVERLAPPING, and the first one ANSWERED decides — see
+     watchSave for the measurement. This is the one place allowed to conclude
+     "nothing was saved", so it still needs a real answer from a look sent
+     after the failure; it just does not stake everything on the first. */
+  firstAnswered(function(){
+      return post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls });
+    }, 3, WATCH_GAP_MS)
     .then(function(j){
       if (!j.ok){ say(where, err.message + ' Could not check either — try again.'); return; }
       applyPeek(who.key, j);
@@ -971,26 +977,62 @@ function verifySave(err, where, who, sigBefore, onLanded){
    `seen(peek)` returns the reply the server WOULD have sent, rebuilt from the
    record, or null. The entry ids are in it — so Undo works, which the old
    "saved after all" path could never offer. */
-var WATCH_FIRST_MS = 6000, WATCH_GAP_MS = 5000, WATCH_MAX = 8;
+/* ⚠️ THE LOOKS OVERLAP, AND THAT IS THE WHOLE POINT — corrected the same
+   evening this shipped. The first version sent a look, waited for it to come
+   home, and only then sent the next. Kim, an hour later: "6 second to save,
+   25 to check the record." The first look had hung exactly the way the save's
+   own answer had, and the watch queued politely behind it.
+
+   MEASURED THAT NIGHT, eight write-free requests 2s apart after a 60s pause:
+   two hung for 30s+ and died as Google's 404 page, while the ones sent AFTER
+   them came back in 2–5s. A hang belongs to ONE REQUEST, not to the server.
+   So each look goes out on the clock, whether or not the one before it has
+   answered, and the first to find the save wins.
+
+   rawPost, not post: a lost look is not retried — the next one is already on
+   its way — and whatever a look is told about the session is the save's own
+   business to act on, not the look's.
+
+   WHAT IT COSTS. Nothing while saves are answered. A lost answer is usually
+   found by the second or third look; the ceiling is WATCH_MAX narrow reads,
+   spread over the time the page would otherwise have spent doing nothing. */
+var WATCH_FIRST_MS = 4000, WATCH_GAP_MS = 2000, WATCH_MAX = 12;
 
 function watchSave(who, seen, onSeen){
   var stopped=false, looks=0, timer=null;
-  function again(){ if (!stopped && looks < WATCH_MAX) timer=setTimeout(look, WATCH_GAP_MS); }
   function look(){
     if (stopped) return;
     looks++;
-    post('groomPeek', { studentId: who.id, name: who.name, cls: who.cls })
+    if (looks < WATCH_MAX) timer=setTimeout(look, WATCH_GAP_MS);
+    rawPost({ action:'groomPeek', token:S.token,
+              studentId: who.id, name: who.name, cls: who.cls })
       .then(function(p){
         if (stopped) return;
         var reply = (p && p.ok) ? seen(p) : null;
-        if (!reply){ again(); return; }
-        stopped=true;
+        if (!reply) return;
+        stopped=true; clearTimeout(timer);
         onSeen(reply, p);
       })
-      .catch(again);
+      .catch(function(){});
   }
   timer=setTimeout(look, WATCH_FIRST_MS);
   return { stop:function(){ stopped=true; clearTimeout(timer); } };
+}
+
+/** The same call up to n times, `gap` ms apart, not waiting in between. The
+    first ANSWER wins; it fails only when every one of them has. */
+function firstAnswered(send, n, gap){
+  return new Promise(function(resolve, reject){
+    var done=false, sent=0, failed=0, timer=null;
+    function go1(){
+      sent++;
+      if (sent < n) timer=setTimeout(go1, gap);
+      send().then(
+        function(j){ if (done) return; done=true; clearTimeout(timer); resolve(j); },
+        function(e){ failed++; if (!done && failed >= n){ done=true; reject(e); } });
+    }
+    go1();
+  });
 }
 
 /** post(), for a write: settles on the reply or on the record, whichever is first. */
