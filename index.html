@@ -103,13 +103,20 @@ body{
   flex:0 0 auto;padding:14px 24px 0;display:flex;align-items:center;
   justify-content:space-between;gap:14px;min-height:44px;
 }
-/* The brand yields to the buttons: it is a label, they are controls. */
+/* The brand yields to the buttons: it is a label, they are controls.
+   TWO LINES SINCE 20 SEPTEMBER 2026 — on a phone the one-line version
+   truncated to "SAJC Discipline Committee…" and never said WHICH tracker.
+   Both lines sit on the 12px floor or above; each still ellipsises alone
+   rather than pushing the buttons off the bar. */
 .brand{
   font-family:'Fraunces',Georgia,serif;
   font-variation-settings:'opsz' 14,'SOFT' 40,'WONK' 1;
-  font-weight:600;font-size:var(--t-md);color:var(--accent);
-  flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-weight:600;color:var(--accent);
+  flex:0 1 auto;min-width:0;line-height:1.3;
 }
+.brand .b1,.brand .b2{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand .b1{font-size:var(--t-sm)}
+.brand .b2{font-size:var(--t-xs);color:var(--muted);font-weight:500}
 .brand em{font-style:normal;color:var(--muted);font-weight:400}
 .back{
   border:0;background:none;color:var(--muted);font:inherit;font-size:var(--t-md);
@@ -173,6 +180,13 @@ h2{font-size:var(--t-2xl)}
 .field textarea{font-size:var(--t-lg);padding:8px 2px 10px;min-height:56px;resize:vertical;line-height:1.5}
 .field input::placeholder,.field textarea::placeholder{color:#b9b3a8}
 .field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--accent)}
+/* The describe-the-offence box that opens under Others — visually tied to the
+   row above it, so it reads as part of the tap rather than a new section. */
+.field.detail{margin:-4px 0 16px;padding:2px 0 0 16px;border-left:3px solid var(--accent-tint)}
+/* The line between "what did they do" and "anything else worth noting" —
+   Kim, 20 Sept 2026: the two are different questions and the screen should
+   say so. */
+.sep{border:0;border-top:1.5px solid var(--rule);margin:24px 0 18px}
 
 /* password reveal */
 .field.reveal{position:relative}
@@ -359,7 +373,7 @@ canvas{display:none}
 
 <div class="prog"><i id="bar"></i></div>
 <div class="top">
-  <div class="brand">SAJC Discipline Committee <em id="hdrSub"></em></div>
+  <div class="brand"><span class="b1">SAJC Discipline Committee</span><span class="b2">Grooming &amp; Attire <em id="hdrSub"></em></span></div>
   <div class="topbtns">
     <button class="back" id="btnHome" onclick="goHome()">⌂ Home</button>
     <button class="back" id="back" onclick="goBack()">← Back</button>
@@ -498,9 +512,14 @@ canvas{display:none}
   <h2>Select Relevant Offences</h2>
   <div id="mOff"></div>
   <div id="cats" style="margin-top:16px"></div>
+  <!-- ⚠️ THE LINE IS THE POINT. Above it: what the offence was. Below it:
+       context that is NOT an offence — a taped earring, a condition — which
+       used to share one box with the Others description and made the record
+       ambiguous. Kim, 20 September 2026. -->
+  <hr class="sep">
   <div class="field">
-    <label for="remarks">Remarks — optional</label>
-    <textarea id="remarks" placeholder="Anything the category doesn't capture"></textarea>
+    <label for="remarks">Remarks — optional, not an offence</label>
+    <textarea id="remarks" placeholder="Context worth keeping, e.g. earring taped, cannot remove yet"></textarea>
   </div>
   <button class="btn good wide" id="btnSubmit" onclick="submitCheck()">Save</button>
   <button class="btn plain" onclick="go('find')">Cancel</button>
@@ -616,8 +635,14 @@ var S = {
   cfg:{minScore:.72,minMargin:.15,graceDays:3},
   student:null, selected:[], lastEntry:null, recent:[], done:0,
   history:{}, rcMode:'class', rcList:[], rcStudent:null, rcFixed:[], rcNew:[], failStill:[],
+  rcDetails:{}, rcFailedFetch:false,
   edRemove:[], edAdd:[], loadedAt:''
 };
+
+/* WHICH PAGE THIS IS. GitHub Pages caches hard and a phone caches harder, so
+   "which build am I looking at" is a real question the moment anything is
+   deployed. Printed in the footer of the home screen — same job as HUB_BUILD. */
+var APP_BUILD = '2026-09-20';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               scan:'pScan', confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -813,21 +838,33 @@ function gist(t){
 
 /* Reading is safe to do twice; writing is not. A load that comes back
    mangled is very often fine on a second ask a moment later, and nobody
-   should have to see an error for something the app could simply redo. */
-var READ_ONLY = { bootstrap:1, refresh:1, peek:1 };
+   should have to see an error for something the app could simply redo.
 
-/* CONTENTION IS NOW A STUTTER, NOT A STALL. The script no longer blocks for
-   twenty seconds waiting its turn; it gives up after four and says so, and
-   the phone quietly tries again a moment later. Nobody sees anything.
+   ⚠️ KEYED BY THE ACTION NAMES ACTUALLY SENT — corrected 20 September 2026.
+   This said `peek:1`, and no action is called peek; the retry it promised
+   never once fired. Same fault, worse company, in RETRY_ON_BUSY below. */
+var READ_ONLY = { bootstrap:1, refresh:1, groomOpen:1, groomPeek:1 };
+
+/* CONTENTION IS NOW A STUTTER, NOT A STALL. The script gives up on the lock
+   after four seconds and answers `busy`, and the phone quietly tries again a
+   moment later. Nobody sees anything.
+
+   ⚠️ NEITHER HALF OF THAT WAS TRUE UNTIL 20 SEPTEMBER 2026, and each half
+   failed alone: the server waited its full twenty seconds and never said
+   `busy`, and this list was keyed 'submit'/'recheck' when the actions are
+   named groomSubmit/groomRecheckMany — so even a busy answer would not have
+   been retried. Both halves shipped together, and the api-version stamp
+   exists so a page like this one cannot sit against a server like that one
+   in silence again.
 
    UNDO IS DELIBERATELY NOT IN THIS LIST. Every other write refuses a repeat
    of itself — a second open row for the same offence is turned away, and a
    second fail on the same day is turned away — so trying twice can only ever
    produce one record. Undo has no such guard: if the first attempt in fact
    succeeded and the answer was lost on the way back, a retry would remove
-   something else. So undo waits its turn properly and, very occasionally,
-   asks you to try again. That is the safer half of the trade. */
-var RETRY_ON_BUSY = { submit:1, recheck:1, edit:1 };
+   something else. So undo asks you to try again instead. That is the safer
+   half of the trade. */
+var RETRY_ON_BUSY = { groomSubmit:1, groomRecheckMany:1 };
 var MAX_BUSY_TRIES = 4;
 
 /* What the last slow call actually cost, split into the part the server
@@ -1019,8 +1056,14 @@ var WHO_KEY   = 'gt2_who';
    anything else — or with nothing, meaning it predates the stamp — every
    other symptom becomes misleading: saves are slow because the old code
    rewrites the whole Log, features are missing, errors make no sense. Say
-   it plainly instead of letting it hide behind everything else. */
-var EXPECTED_API = '2026-08-12';
+   it plainly instead of letting it hide behind everything else.
+
+   ⚠️ CALLED FROM bootstrap() SINCE 20 SEPTEMBER 2026 AND NOT BEFORE — this
+   function existed, the server's apiVersion did not, and no call site did
+   either. Three halves of one alarm, each shipped alone. The backend's
+   test/api-version-contract.test.js now fails when the two stamps drift;
+   bump this WITH the server's API_VERSION, and deploy the server first. */
+var EXPECTED_API = '2026-09-20';
 
 function checkApiVersion(j){
   var got = j && j.apiVersion;
@@ -1075,7 +1118,16 @@ function applyBoot(j){
 function applyOpen(rows){
   S.open = {}; S.entryFor = {}; S.openRow = {};
   (rows||[]).forEach(function(r){
-    var key = r.studentId || ('~'+r.cls+'|'+r.name);
+    /* ⚠️ THE SAME KEY openKeyFor BUILDS, OR SHE IS TWO STUDENTS. This was
+       '~cls|name', raw — reversed AND unnormalised against the canonical
+       '~NAME|CLS' every other line of this page keys her by. So an ID-less
+       student's open offences and her search hits lived under different
+       keys: the search never wore the Recheck flag, and confirming her
+       walked into a fresh check instead of her recheck. The exact fault the
+       22 August canonicalisation fixed in bootstrap's today map, alive here.
+       Found 20 September 2026. */
+    var key = r.studentId ||
+              openKeyFor({ id:'', name:r.name, cls:r.cls });
     if (!S.open[key]) S.open[key] = [];
     S.open[key].push(r.category);
     S.entryFor[key + '|' + r.category] = r.entryId;
@@ -1118,13 +1170,19 @@ function entriesFor(key, codes){
    whatever it had and the recheck list still fetches on tap, exactly as before.
 */
 function refreshOpen(){
+  S.rcFailedFetch = false;
   return post('groomOpen',{}).then(function(j){
-    if (!j || !j.ok) return;
+    if (!j || !j.ok) { S.rcFailedFetch = true; if (current === 'home') paintHome(); return; }
     applyOpen(j.rows);
     S.rcFetched = true;
     S.loadedAt = j.serverTime || S.loadedAt;
     if (current === 'home') paintHome();
-  }).catch(function(){});
+  }).catch(function(){
+    /* Say the count could not be checked rather than leaving "checking…"
+       standing for ever — the button still fetches on tap either way. */
+    S.rcFailedFetch = true;
+    if (current === 'home') paintHome();
+  });
 }
 
 function bootstrap(force){
@@ -1140,6 +1198,7 @@ function bootstrap(force){
       if (!j.ok) return;
       applyBoot(j); saveBoot(j);
       say('mHome','');
+      checkApiVersion(j);
       if (current === 'home') paintHome();
     }).catch(function(){});
     refreshOpen();
@@ -1153,6 +1212,7 @@ function bootstrap(force){
     applyBoot(j); saveBoot(j);
     document.getElementById('hdrSub').textContent = '· ' + S.who;
     say('mHome','');            /* whatever went wrong last time is over */
+    checkApiVersion(j);
     go('home', true);
     refreshOpen();
   }).catch(function(e){ go('home', true); say('mHome', e.message); });
@@ -1162,12 +1222,24 @@ function refreshAll(){ bootstrap(true); }
 function paintHome(){
   var openCount = Object.keys(S.open).length;
   document.getElementById('homeEyebrow').textContent = dateLine();
-  document.getElementById('homeStats').textContent = openCount
-    ? openCount + (openCount===1 ? ' needs to be rechecked.' : ' need to be rechecked.')
-    : 'Nobody needs a recheck.';
-  document.getElementById('btnRecheck').textContent = 'Recheck list · ' + openCount;
+  /* ⚠️ AN UNFETCHED COUNT IS NOT ZERO — 20 September 2026, the 22 August
+     bug's second life. The count is fetched at sign-in now, but until that
+     reply lands this painted "Nobody needs a recheck." and "· 0" out of an
+     empty S.open — and on the live deployment that window was long enough
+     for Kim to read the zero and report it. A number the app does not know
+     yet is said as "checking", never as the reassuring answer. */
+  document.getElementById('homeStats').textContent = !S.rcFetched
+    ? (S.rcFailedFetch
+        ? 'Could not check who needs a recheck — tap Recheck list to try again.'
+        : 'Checking who needs a recheck…')
+    : (openCount
+        ? openCount + (openCount===1 ? ' needs to be rechecked.' : ' need to be rechecked.')
+        : 'Nobody needs a recheck.');
+  document.getElementById('btnRecheck').textContent =
+    S.rcFetched ? 'Recheck list · ' + openCount : 'Recheck list';
   document.getElementById('loadedAt').textContent =
-    (S.loadedAt ? 'Roster loaded at ' + S.loadedAt : '') +
+    'Build ' + APP_BUILD +
+    (S.loadedAt ? '  ·  Roster loaded at ' + S.loadedAt : '') +
     (lastTiming ? '  ·  Last slow call: ' + describeTiming(lastTiming) : '');
 
   var wrap = document.getElementById('recentWrap'), list = document.getElementById('recentList');
@@ -1224,6 +1296,20 @@ function recomputeOpenAfterUndo(entry){
   if (!S.open[entry.key]) return;
   S.open[entry.key] = S.open[entry.key].filter(function(c){ return entry.codes.indexOf(c)===-1; });
   if (!S.open[entry.key].length) delete S.open[entry.key];
+}
+
+/* THE SAVED SCREEN, ONE OFFENCE PER LINE — Kim, 20 September 2026:
+   "everything is just run-on and hard to read." Built with textContent, never
+   markup, because half of these strings were typed by a person seconds ago. */
+function paintDone(name, lines){
+  var el=document.getElementById('dWhat'); el.innerHTML='';
+  var head=document.createElement('span'); head.textContent=name;
+  el.appendChild(head);
+  (lines||[]).forEach(function(line){
+    el.appendChild(document.createElement('br'));
+    var s=document.createElement('span'); s.textContent=line;
+    el.appendChild(s);
+  });
 }
 
 /* ── AFTER A RECHECK, ASK RATHER THAN GUESS ────────────────────────────────
@@ -1483,6 +1569,64 @@ function labelForStudent(cat,gender){
   if (g.indexOf('F')===0) return cat.girls;
   return cat.name;
 }
+
+/* ── "OTHERS" NEEDS WORDS ─────────────────────────────────────────────────
+   Kim, 20 September 2026: remarks was doing two jobs — describing the Others
+   offence, and carrying context that is no offence at all. So a category
+   whose label says Others opens a describe-box the moment it is ticked, the
+   description is REQUIRED before saving, and it travels as details:{code:
+   text} to land in that row's own Remarks cell, ahead of the general remark.
+   📊 Reports then shows "Others" with its description right beside it and no
+   column moves anywhere.
+
+   MATCHED ON THE LABEL, NOT THE CODE. The Categories tab is hand-edited;
+   pinning C8 here would quietly stop asking the day somebody reorders it. */
+function needsDetail(cat){ return /others?/i.test(String((cat && cat.name) || '')); }
+
+/** The describe-box under a needs-detail category, hidden until it is ticked. */
+function detailFieldFor(cat){
+  var w=document.createElement('div');
+  w.className='field detail';
+  w.style.display='none';
+  w.setAttribute('data-detail-for', cat.code);
+  var l=document.createElement('label'); l.textContent='Describe the offence';
+  var ta=document.createElement('textarea');
+  ta.setAttribute('data-detail', cat.code);
+  ta.placeholder='What was it? Said plainly — it goes on the record.';
+  w.appendChild(l); w.appendChild(ta);
+  return w;
+}
+
+function toggleDetail(box, code, on){
+  var w=box.querySelector('[data-detail-for="'+code+'"]');
+  if (!w) return;
+  w.style.display = on ? 'block' : 'none';
+  if (on){ var ta=w.querySelector('textarea');
+           if (ta) setTimeout(function(){ ta.focus(); }, 60); }
+}
+
+/**
+ * {code: text} for the ticked codes in one container — or null, having said
+ * which one still needs describing. A ticked Others with an empty box refuses
+ * the save: an "Others" row with no words is a row the report reader cannot
+ * act on, and the person who knows what it was is standing right there.
+ */
+function collectDetails(box, codes, where){
+  var out={};
+  for (var i=0;i<codes.length;i++){
+    var code=codes[i];
+    var ta=box.querySelector('textarea[data-detail="'+code+'"]');
+    if (!ta) continue;
+    var text=ta.value.trim();
+    if (!text){
+      say(where, 'Describe the offence under "'+labelFor(code)+'" before saving.');
+      ta.focus();
+      return null;
+    }
+    out[code]=text;
+  }
+  return out;
+}
 function showOffences(){
   var s=S.student; S.selected=[];
   document.getElementById('oWho').textContent = s.name + ' · ' + s.cls;
@@ -1500,6 +1644,7 @@ function showOffences(){
     b.querySelector('b').textContent=label;
     b.onclick=function(){ toggleCat(b, c.code); };
     box.appendChild(b);
+    if (needsDetail(c)) box.appendChild(detailFieldFor(c));
   });
   if (!n) box.innerHTML='<p class="lede">No categories are set up. Check the Categories tab in the spreadsheet.</p>';
   go('offences');
@@ -1508,15 +1653,19 @@ function toggleCat(b, code){
   var i=S.selected.indexOf(code);
   if (i===-1){ S.selected.push(code); b.classList.add('sel'); }
   else { S.selected.splice(i,1); b.classList.remove('sel'); }
+  toggleDetail(document.getElementById('cats'), code, S.selected.indexOf(code)!==-1);
 }
 function submitCheck(){
   if (!S.selected.length){ say('mOff','Tap at least one category, or cancel.'); return; }
+  var details=collectDetails(document.getElementById('cats'), S.selected, 'mOff');
+  if (!details) return;
   var s=S.student, b=document.getElementById('btnSubmit');
   var key=openKeyFor(s), sigBefore=stateSig(key);
   b.disabled=true; b.textContent='Saving…';
   slowNote('mOff', true);
   post('groomSubmit',{ studentId:s.id, name:s.name, cls:s.cls,
-    categories:S.selected, remarks:document.getElementById('remarks').value.trim(), by:S.who })
+    categories:S.selected, details:details,
+    remarks:document.getElementById('remarks').value.trim(), by:S.who })
     .then(function(j){
       b.disabled=false; b.innerHTML='Save'; slowNote('mOff', false);
       if (!j.ok){ say('mOff', j.error); return; }
@@ -1530,9 +1679,13 @@ function submitCheck(){
       S.recent.unshift({entryIds:S.lastEntry.entryIds,key:key,name:s.name,cls:s.cls,codes:codes,
         what:codes.map(labelFor).join(', ')});
       S.recent=S.recent.slice(0,10); S.done++;
-      document.getElementById('dWhat').textContent = s.name + ' — ' + codes.map(labelFor).join(', ') +
-        (j.duplicates && j.duplicates.length
-           ? ' · already recorded today: ' + j.duplicates.map(labelFor).join(', ') : '');
+      var doneLines = codes.map(function(c){
+        return labelFor(c) + (details[c] ? ' — ' + details[c] : '');
+      });
+      if (j.duplicates && j.duplicates.length){
+        doneLines.push('Already recorded today: ' + j.duplicates.map(labelFor).join(', '));
+      }
+      paintDone(s.name, doneLines);
       document.getElementById('btnUndo').style.display='block';
       say('mDone','');
       go('done');
@@ -1545,8 +1698,7 @@ function submitCheck(){
            button that would fail. */
         S.done++;
         S.lastEntry=null;
-        document.getElementById('dWhat').textContent =
-          s.name + ' — ' + S.selected.map(labelFor).join(', ');
+        paintDone(s.name, S.selected.map(labelFor));
         document.getElementById('btnUndo').style.display='none';
         go('done');
         say('mOff','');
@@ -1891,19 +2043,55 @@ function goRecheck(){
   }).catch(function(e){ go('home', true); say('mHome', e.message); });
 }
 
-function openRecheck(){
-  var q=document.getElementById('rcQ');
-  if (q && current!=='recheck') q.value='';
+function buildRcList(){
   var byId={}; S.students.forEach(function(st){ byId[st[0]]=st; });
   S.rcList=Object.keys(S.open).map(function(key){
     var st=byId[key], codes=S.open[key];
     if (st) return {key:key,id:st[0],name:st[1],cls:st[2],gender:genderOf(st),codes:codes};
+    /* The canonical ID-less key is '~NAME|CLS' — name first. This read it the
+       old reversed way, so an unrostered student's row showed her class where
+       her name goes. Fixed with applyOpen, 20 September 2026. */
     var parts=key.replace(/^~/,'').split('|');
-    return {key:key,id:'',name:parts[1]||key,cls:parts[0]||'',gender:'',codes:codes};
+    return {key:key,id:'',name:parts[0]||key,cls:parts[1]||'',gender:'',codes:codes};
   });
   document.getElementById('rcCount').textContent =
     S.rcList.length + (S.rcList.length===1 ? ' student outstanding' : ' students outstanding');
+}
+
+function openRecheck(){
+  var q=document.getElementById('rcQ');
+  if (q && current!=='recheck') q.value='';
+  buildRcList();
   say('mRc',''); paintRecheck(); go('recheck');
+}
+
+/**
+ * ONE STUDENT'S OPEN LIST, PATCHED FROM A SAVE'S OWN REPLY. The reply's
+ * authority is HER entries and nothing else — see openNow on the server —
+ * so other students' rows are untouched and the background re-read below
+ * remains the truth for everybody else.
+ */
+function applyOpenNow(key, rows){
+  (S.open[key]||[]).forEach(function(c){ delete S.entryFor[key+'|'+c]; });
+  var codes=[];
+  (rows||[]).forEach(function(o){
+    codes.push(o.category);
+    S.entryFor[key+'|'+o.category]=o.entryId;
+    S.openRow[o.entryId]={ entryId:o.entryId, category:o.category };
+  });
+  if (codes.length) S.open[key]=codes; else delete S.open[key];
+}
+
+/** The full list, silently, without clearing whatever message is showing. */
+function backgroundOpenRefresh(){
+  post('groomOpen',{}).then(function(o){
+    if (!o || !o.ok) return;
+    applyOpen(o.rows);
+    S.rcFetched=true;
+    S.loadedAt=o.serverTime||S.loadedAt;
+    if (current==='recheck'){ buildRcList(); paintRecheck(); }
+    else if (current==='home') paintHome();
+  }).catch(function(){});
 }
 function setRcMode(m){
   S.rcMode=m;
@@ -2094,8 +2282,10 @@ function drawNewOffences(student, openCodes){
       var k=S.rcNew.indexOf(c.code);
       if (k===-1){ S.rcNew.push(c.code); b.classList.add('sel'); }
       else { S.rcNew.splice(k,1); b.classList.remove('sel'); }
+      toggleDetail(box, c.code, S.rcNew.indexOf(c.code)!==-1);
     };
     box.appendChild(b);
+    if (needsDetail(c)) box.appendChild(detailFieldFor(c));
   });
 }
 /* ── the recheck decision ───────────────────────────────────────────────
@@ -2107,7 +2297,7 @@ function drawNewOffences(student, openCodes){
    ─────────────────────────────────────────────────────────────────────── */
 function rcPass(){
   var r=S.rcStudent;
-  S.rcNew=[];                      /* a pass is one tap, and stays one tap */
+  S.rcNew=[]; S.rcDetails={};      /* a pass is one tap, and stays one tap */
   saveRecheck(r.codes.slice(), [], document.getElementById('btnPass'), 'Pass — all fixed');
 }
 
@@ -2143,6 +2333,9 @@ function submitFail(){
     say('mFail','Nothing is ticked, so they have fixed everything. Go back and tap Pass instead.','warn');
     return;
   }
+  var details=collectDetails(document.getElementById('rNew'), S.rcNew, 'mFail');
+  if (!details) return;
+  S.rcDetails=details;
   var resolved=r.codes.filter(function(c){ return still.indexOf(c)===-1; });
   saveRecheck(resolved, still, document.getElementById('btnFailSave'), 'Save');
 }
@@ -2160,7 +2353,7 @@ function saveRecheck(resolved, stillOpen, btn, btnLabel){
   post('groomRecheckMany',{studentId:r.id,name:r.name,cls:r.cls,
                   fixed:entriesFor(r.key,resolved),
                   notFixed:entriesFor(r.key,stillOpen),
-                  newCategories:added, by:S.who})
+                  newCategories:added, details:S.rcDetails||{}, by:S.who})
     .then(function(j){
       btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
       if (!j.ok){ say(where, j.error); return; }
@@ -2179,7 +2372,20 @@ function saveRecheck(resolved, stillOpen, btn, btnLabel){
         msg += '. Already recorded today for ' + j.duplicates.map(labelFor).join(', ') +
                ', so that was not counted again';
       }
-      refreshOpenAfterSave(r, j, msg, stillOpen.length ? 'warn' : 'ok');
+      /* ⚠️ THE SECOND WAIT IS GONE — 20 September 2026. The reply now says
+         exactly what this write left open for HER (openNow), so the list is
+         patched and shown at once instead of standing on the fail screen
+         while a second full call runs. The whole list still re-reads in the
+         BACKGROUND, because another phone may have moved somebody else. An
+         old deployment sends no openNow; the serial path remains for it. */
+      if (j.openNow !== undefined){
+        applyOpenNow(r.key, j.openNow);
+        openRecheck();
+        if (msg) say('mRc', msg, stillOpen.length ? 'warn' : 'ok');
+        backgroundOpenRefresh();
+      } else {
+        refreshOpenAfterSave(r, j, msg, stillOpen.length ? 'warn' : 'ok');
+      }
     })
     .catch(function(e){
       btn.disabled=false; btn.innerHTML=btnLabel; slowNote(where, false);
@@ -2230,8 +2436,10 @@ function openEdit(){
       var k=S.edAdd.indexOf(c.code);
       if (k===-1){ S.edAdd.push(c.code); b.classList.add('sel'); }
       else { S.edAdd.splice(k,1); b.classList.remove('sel'); }
+      toggleDetail(right, c.code, S.edAdd.indexOf(c.code)!==-1);
     };
     right.appendChild(b);
+    if (needsDetail(c)) right.appendChild(detailFieldFor(c));
   });
   go('edit');
 }
@@ -2242,6 +2450,8 @@ function submitEdit(){
   var r=S.rcStudent;
   var remove=S.edRemove.slice(), add=S.edAdd.slice();
   if (!remove.length && !add.length){ say('mEdit','Nothing to change.'); return; }
+  var addDetails=collectDetails(document.getElementById('eRight'), add, 'mEdit');
+  if (!addDetails) return;
   var b=document.getElementById('btnEdit');
   b.disabled=true; b.textContent='Saving…';
 
@@ -2267,7 +2477,7 @@ function submitEdit(){
 
     if (!add.length){ finish(note, refused.length ? 'warn' : 'ok'); return; }
     post('groomSubmit',{ studentId:r.id, name:r.name, cls:r.cls,
-                         categories:add, by:S.who })
+                         categories:add, details:addDetails, by:S.who })
       .then(function(j){
         finish(note + (j && j.ok ? ', ' + (j.recorded||[]).length + ' added' : ', could not add'),
                refused.length ? 'warn' : 'ok');
@@ -2317,7 +2527,11 @@ document.addEventListener('keydown', function(e){
   if (current==='confirm'){ proceed(); e.preventDefault(); return; }
   if (current==='offences' && !typing){ submitCheck(); e.preventDefault(); return; }
   if (current==='done'){ nextStudent(); e.preventDefault(); return; }
-  if (current==='rcone' && !typing){ submitRecheck(); e.preventDefault(); return; }
+  /* rcone DELIBERATELY HAS NO ENTER — the decision there is Pass or Fail,
+     and a stray keystroke must not take it. (Until 20 September 2026 this
+     line dispatched to submitRecheck(), a function that does not exist, so
+     Enter threw a ReferenceError instead of recording anything. The bug was
+     the crash; the fix is the absence.) */
 });
 
 /* ── start ──────────────────────────────────────────────────────────── */
