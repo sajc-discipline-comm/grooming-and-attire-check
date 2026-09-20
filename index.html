@@ -611,8 +611,12 @@ var S = {
 
 /* WHICH PAGE THIS IS. GitHub Pages caches hard and a phone caches harder, so
    "which build am I looking at" is a real question the moment anything is
-   deployed. Printed in the footer of the home screen — same job as HUB_BUILD. */
-var APP_BUILD = '2026-09-20';
+   deployed. Printed in the footer of the home screen — same job as HUB_BUILD.
+
+   A LETTER AFTER THE DATE WHEN A DAY SHIPS MORE THAN ONCE. 20 September 2026
+   shipped four times, and three of them said the same thing here — which is
+   the one question the stamp exists to answer, unanswered. */
+var APP_BUILD = '2026-09-20d';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -879,10 +883,15 @@ function describeTiming(t){
     return t.action + ' took ' + secs(t.trip) + ' — the server did not report its own time.';
   }
   var elsewhere = Math.max(0, t.trip - t.ms.total);
+  /* The server has filled these in since 20 September 2026 — see lap_ in
+     WebApi.js. An older deployment sends only total, and every line below is
+     then simply skipped. */
   var parts = [];
+  if (t.ms.auth  > 500) parts.push(secs(t.ms.auth) + ' checking the sign-in');
   if (t.ms.lock  > 500) parts.push(secs(t.ms.lock) + ' waiting for another save to finish');
   if (t.ms.read  > 500) parts.push(secs(t.ms.read) + ' reading');
   if (t.ms.write > 500) parts.push(secs(t.ms.write) + ' writing');
+  if (t.ms.rest  > 500) parts.push(secs(t.ms.rest) + ' on the rest');
   return t.action + ' took ' + secs(t.trip) + ': ' + secs(t.ms.total) + ' in the script' +
          (parts.length ? ' (' + parts.join(', ') + ')' : '') +
          ', ' + secs(elsewhere) + ' getting there and back.';
@@ -1761,10 +1770,21 @@ function foldHistory(j){
   (j.history||[]).forEach(function(h){
     var c = h.category;
     if (!by[c]) by[c] = { times:0, fails:0, noShows:0, trail:'', past:[] };
+    var failed = (h.attempts||0) - (h.fixed ? 1 : 0);
     by[c].times++;
-    by[c].fails   += (h.attempts||0) - (h.fixed ? 1 : 0);
     by[c].noShows += (h.noShows||0);
-    by[c].past.push({ date:h.date, fixed:h.fixed, open:h.open });
+    /* ⚠️ THE CASE OPEN NOW IS NOT ONE OF HER PAST CASES, AND ITS FAILS ARE THE
+       ONLY ONES THE PILL COUNTS — which is what the block above histFor has
+       always said. Until 20 September 2026 every row went into `past`, the open
+       one included, and every row's fails were summed: so a girl caught for the
+       first time had "a previous case", and a new case opened wearing the last
+       one's "failed 1×".
+
+       AND `past` CARRIES WHAT pastLine READS. It held {date, fixed, open} while
+       pastLine read {from, to, fails} — the old app's shape — so the line came
+       out as "Previously undefined, cleared undefined first time". */
+    if (h.open) by[c].fails += failed;
+    else by[c].past.push({ date:h.date, fixed:!!h.fixed, fails:failed });
   });
   return by;
 }
@@ -1871,16 +1891,33 @@ function shortTrail(t){
   return '… ' + parts.slice(-4).join(' · ');
 }
 
-/** What happened the previous time — or times — they were caught for this. */
+/** "10 Aug 2026 (Mon)", the sheet's stamp, as "10 Aug" — the year is this one. */
+function shortDay(stamp){
+  return String(stamp||'').split(' ').slice(0,2).join(' ');
+}
+
+/** How one closed case ended, from the only three things known about it. */
+function endedHow(p){
+  if (!p.fixed) return 'not fixed';
+  return 'fixed' + (p.fails ? ' after ' + p.fails + ' failed recheck' + (p.fails>1?'s':'')
+                            : ' at the first recheck');
+}
+
+/**
+ * What happened the previous time — or times — they were caught for this.
+ * Reads the shape foldHistory writes: {date, fixed, fails}, closed cases only.
+ * groomPeek says when a case was RECORDED and how it ended, not the day it was
+ * cleared, so that is what this says.
+ */
 function pastLine(h){
   if (!h.past.length) return '';
   var last = h.past[h.past.length-1];
+  var when = shortDay(last.date);
   if (h.past.length === 1){
-    return 'Previously ' + last.from + ', cleared ' + last.to +
-           (last.fails ? ' after ' + last.fails + ' failed recheck' + (last.fails>1?'s':'')
-                       : ' first time');
+    return 'Previously' + (when ? ' on ' + when : '') + ', ' + endedHow(last);
   }
-  return h.past.length + ' earlier cases · the last cleared ' + last.to;
+  return h.past.length + ' earlier cases · the last' + (when ? ' on ' + when : '') +
+         ', ' + endedHow(last);
 }
 
 /**
@@ -2430,6 +2467,25 @@ document.addEventListener('keydown', function(e){
 window.__scan = S;
 window.__scanGo = go;
 
+/* ── WAKING THE SERVER WHILE SOMEBODY TYPES THEIR NAME ────────────────────
+   MEASURED AGAINST THE LIVE DEPLOYMENT, 20 SEPTEMBER 2026. After a few idle
+   minutes the first request to this deployment costs twenty seconds or more
+   BEFORE ANY HANDLER RUNS: a wrong-password sign-in, which opens no sheet,
+   took 25.5s while the script's own clock said 57ms. The calls straight after
+   it took under two. Signing in is two calls in a row, so the first person of
+   the morning waited for all of that after pressing the button.
+
+   Nothing on this page can make that first call cheap. It can make it EARLY.
+
+   ⚠️ rawPost, NEVER post. There is no token, so the server answers needsLogin
+   — which post() reads as "your session has expired" and says so, on a screen
+   nobody has signed in to. The refusal IS the work: the script has loaded by
+   the time it is sent. It opens no sheet, takes no lock and writes nothing.
+   ─────────────────────────────────────────────────────────────────────── */
+function wakeServer(){
+  try { rawPost({ action:'wake' }).catch(function(){}); } catch(e){}
+}
+
 (function(){
   document.getElementById('loginDate').textContent = dateLine();
   try{
@@ -2437,6 +2493,7 @@ window.__scanGo = go;
     if (t && w){ S.token=t; S.who=w; bootstrap(false); return; }
   }catch(e){}
   document.getElementById('bar').style.width='0%';
+  wakeServer();
 })();
 </script>
 </body>
