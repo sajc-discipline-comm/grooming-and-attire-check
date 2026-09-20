@@ -435,6 +435,7 @@ a.btn.plain{text-decoration:none;margin-top:4px}
   <div class="spin"></div>
   <h2 id="loadMsg">Fetching the roster</h2>
   <p class="lede">This happens once. Everything after it is instant.</p>
+  <p class="lede" id="loadNote" aria-live="polite"></p>
 </section>
 
 <!-- 3 · HOME -->
@@ -642,7 +643,7 @@ var S = {
    A LETTER AFTER THE DATE WHEN A DAY SHIPS MORE THAN ONCE. 20 September 2026
    shipped four times, and three of them said the same thing here — which is
    the one question the stamp exists to answer, unanswered. */
-var APP_BUILD = '2026-09-20i';
+var APP_BUILD = '2026-09-20j';
 
 var PANES = { login:'pLogin', loading:'pLoading', home:'pHome', find:'pFind',
               confirm:'pConfirm', offences:'pOffences', done:'pDone',
@@ -874,6 +875,10 @@ var MAX_BUSY_TRIES = 4;
    amount of tuning the script will touch it. */
 var lastTiming = null;
 
+/* Told when a read has been asked for a second (third…) time, so a screen that
+   is visibly waiting can say so. Set by whoever is waiting; null otherwise. */
+var askedAgain = null;
+
 function post(action, body, attempt){
   attempt = attempt || 1;
   var payload = Object.assign({ action:action, token:S.token }, body||{});
@@ -890,11 +895,18 @@ function post(action, body, attempt){
      ⚠️ NEVER A WRITE. A second copy of a save is somebody pressing Save twice.
      Writes are found in the record instead — postWatched.
 
-     bootstrap waits longer before its second ask: it carries the whole roster,
-     and on a cold cache it is honestly slow rather than hung. */
+     ⚠️ THE ROSTER IS ASKED AGAIN ON THE SAME CLOCK AS EVERYTHING ELSE — since 20
+     September 2026. It used to wait twice as long, because a cold roster is
+     honestly slow and a second copy reading the Master beside the first made
+     both slower: Kim watched "Fetching the roster" for a minute and a half. The
+     SERVER now handles that — a copy that arrives mid-read waits for the first
+     reader's result instead of reading (see apiBootstrap_) — so asking again
+     early is cheap, and a lost answer costs five seconds instead of thirty.
+     Four copies, not three: about one answer in three is lost on a bad night,
+     and three in a row is one morning in thirty. */
   var first = !READ_ONLY[action] ? rawPost(payload)
-    : firstAnswered(function(){ return rawPost(payload); }, 3,
-                    action === 'bootstrap' || action === 'refresh' ? HEDGE_MS * 2 : HEDGE_MS);
+    : firstAnswered(function(){ return rawPost(payload); }, 4,
+                    HEDGE_MS, function(){ if (askedAgain) askedAgain(action); });
 
   return first
     .catch(function(e){
@@ -1070,12 +1082,13 @@ function watchSave(who, seen, onSeen){
 
 /** The same call up to n times, `gap` ms apart, not waiting in between. The
     first ANSWER wins; it fails only when every one of them has. */
-function firstAnswered(send, n, gap){
+function firstAnswered(send, n, gap, onAgain){
   return new Promise(function(resolve, reject){
     var done=false, sent=0, failed=0, timer=null;
     function go1(){
       clearTimeout(timer);
       sent++;
+      if (sent > 1 && onAgain){ try { onAgain(sent); } catch(e){} }
       if (sent < n) timer=setTimeout(go1, gap);
       send().then(
         function(j){ if (done) return; done=true; clearTimeout(timer); resolve(j); },
@@ -1403,7 +1416,19 @@ function bootstrap(force){
 
   go('loading');
   document.getElementById('loadMsg').textContent = force ? 'Re-reading the roster' : 'Fetching the roster';
+  /* ⚠️ A WAIT THAT SAYS NOTHING READS AS BROKEN. Kim, 20 September 2026: "it
+     has been fetching for a minute and it's still not done… i think something
+     is wrong." Nothing was wrong that the screen could not have said: Google
+     had lost the answer and the app was asking again. So it says so, the
+     moment it asks — in words a teacher can repeat to whoever is next to her. */
+  var note = document.getElementById('loadNote');
+  note.textContent = '';
+  askedAgain = function(){
+    note.textContent = 'Google is slow to answer right now, so the app has asked again. ' +
+                       'Nothing is wrong with your phone — it usually comes through in a few seconds.';
+  };
   post(force ? 'refresh' : 'bootstrap', {}).then(function(j){
+    askedAgain = null;
     if (!j.ok) { signOut(j.error); return; }
     applyBoot(j); saveBoot(j);
     document.getElementById('hdrSub').textContent = '· ' + S.who;
@@ -1411,7 +1436,7 @@ function bootstrap(force){
     checkApiVersion(j);
     go('home', true);
     refreshOpen();
-  }).catch(function(e){ go('home', true); say('mHome', e.message); });
+  }).catch(function(e){ askedAgain = null; go('home', true); say('mHome', e.message); });
 }
 function refreshAll(){ bootstrap(true); }
 
@@ -1796,7 +1821,12 @@ function labelForStudent(cat,gender){
 
    MATCHED ON THE LABEL, NOT THE CODE. The Categories tab is hand-edited;
    pinning C8 here would quietly stop asking the day somebody reorders it. */
-function needsDetail(cat){ return /others?/i.test(String((cat && cat.name) || '')); }
+/* ⚠️ BEGINS WITH, NOT CONTAINS — 20 September 2026. It was /others?/ anywhere
+   in the label, which is also true of "Multiple Earrings/OTHER Accessories" by
+   accident of spelling; Kim: "i don't need it to specify what other
+   accessories there are." The catch-all is the category CALLED Other(s), so
+   that is what is matched — "Others", "Other", "Others (please describe)". */
+function needsDetail(cat){ return /^\s*others?\b/i.test(String((cat && cat.name) || '')); }
 
 /** The describe-box under a needs-detail category, hidden until it is ticked. */
 function detailFieldFor(cat){
